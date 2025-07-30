@@ -36,7 +36,11 @@ func InitDB() {
 		log.Fatal("Gagal koneksi ke database:", err)
 	}
 
-	err = db.AutoMigrate(&models.SambutanKepalaDesa{})
+	err = db.AutoMigrate(
+		&models.SambutanKepalaDesa{},
+		&models.Admin{},
+		&models.Berita{},
+	)
 	if err != nil {
 		log.Fatal("Gagal migrasi database:", err)
 	}

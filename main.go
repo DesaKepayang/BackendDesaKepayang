@@ -14,6 +14,7 @@ func main() {
 	config.DB.AutoMigrate(
 		&models.SambutanKepalaDesa{},
 		&models.Admin{},
+		&models.Berita{},
 	)
 
 	// Inisialisasi router
