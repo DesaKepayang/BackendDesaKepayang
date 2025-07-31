@@ -8,8 +8,8 @@ type DataPenduduk struct {
 	Agama  string `gorm:"type:varchar(50);not null"`
 	Gender string `gorm:"type:varchar(10);not null"`
 
-	// Relasi dengan tabel rt_rw
-	RTRW RTRW `gorm:"foreignKey:IDRTRW;references:IDRTRW;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
+	// PERBAIKAN: Deklarasikan relasi dengan benar
+	RTRW RTRW `gorm:"foreignKey:IDRTRW;references:IDRTRW"`
 }
 
 func (DataPenduduk) TableName() string {
