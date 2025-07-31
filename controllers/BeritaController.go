@@ -14,11 +14,28 @@ import (
 // ==================================
 
 func CreateBerita(c *gin.Context) {
-	var berita models.Berita
+	judul := c.PostForm("judul")
+	deskripsi := c.PostForm("deskripsi")
 
-	if err := c.ShouldBindJSON(&berita); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Ambil file gambar dari form-data
+	file, err := c.FormFile("foto")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal mengambil file foto"})
 		return
+	}
+
+	// Simpan file ke folder lokal
+	path := "uploads/" + file.Filename
+	if err := c.SaveUploadedFile(file, path); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file"})
+		return
+	}
+
+	// Simpan data berita ke database
+	berita := models.Berita{
+		Judul:     judul,
+		Deskripsi: deskripsi,
+		Foto:      path,
 	}
 
 	if err := config.DB.Create(&berita).Error; err != nil {
@@ -52,16 +69,30 @@ func UpdateBerita(c *gin.Context) {
 	id := c.Param("id")
 	var berita models.Berita
 
-	// Cek apakah data berita dengan ID tersebut ada
+	// Cari data berita berdasarkan ID
 	if err := config.DB.First(&berita, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Berita tidak ditemukan"})
 		return
 	}
 
-	// Bind data JSON ke struct berita
-	if err := c.ShouldBindJSON(&berita); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	// Ambil data form
+	judul := c.PostForm("judul")
+	deskripsi := c.PostForm("deskripsi")
+
+	// Perbarui data judul dan deskripsi
+	berita.Judul = judul
+	berita.Deskripsi = deskripsi
+
+	// Cek apakah ada file baru dikirim
+	file, err := c.FormFile("foto")
+	if err == nil {
+		// Jika ada file baru, simpan ke folder dan perbarui path
+		path := "uploads/" + file.Filename
+		if err := c.SaveUploadedFile(file, path); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file baru"})
+			return
+		}
+		berita.Foto = path
 	}
 
 	// Simpan perubahan
