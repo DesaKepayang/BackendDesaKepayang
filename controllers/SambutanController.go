@@ -30,11 +30,13 @@ func TambahSambutan(c *gin.Context) {
 
 	// Ambil teks sambutan
 	kataSambutan := c.PostForm("kata_sambutan")
+	namaKepalaDesa := c.PostForm("nama_kepaladesa")
 
 	// Buat objek dan simpan
 	sambutan := models.SambutanKepalaDesa{
-		Foto:         path,
-		KataSambutan: kataSambutan,
+		Foto:           path,
+		KataSambutan:   kataSambutan,
+		NamaKepalaDesa: namaKepalaDesa, // Tambahan
 	}
 
 	if err := config.DB.Create(&sambutan).Error; err != nil {

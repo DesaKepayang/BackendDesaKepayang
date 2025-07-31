@@ -16,6 +16,7 @@ func main() {
 		&models.Admin{},
 		&models.Berita{},
 		&models.VisiMisi{},
+		&models.StrukturDesa{},
 	)
 
 	// Inisialisasi router
@@ -26,6 +27,7 @@ func main() {
 	routes.AdminRoutes(r)
 	routes.BeritaRoutes(r)
 	routes.VisiMisiRoutes(r)
+	routes.StrukturDesaRoutes(r)
 
 	// Root testing
 	r.GET("/", func(c *gin.Context) {
