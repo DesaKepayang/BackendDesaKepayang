@@ -49,7 +49,7 @@ func CreatePenduduk(c *gin.Context) {
 
 func GetAllPenduduk(c *gin.Context) {
 	var data []models.DataPenduduk
-	if err := config.DB.Preload("RTRW").Find(&data).Error; err != nil {
+	if err := config.DB.Preload("Penduduk.RTRW").Find(&data).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data penduduk"})
 		return
 	}
