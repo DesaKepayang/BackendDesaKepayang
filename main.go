@@ -23,6 +23,9 @@ func main() {
 	// Inisialisasi router
 	r := gin.Default()
 
+	// Jadikan folder 'uploads/' sebagai folder statis
+	r.Static("/uploads", "./uploads")
+
 	// Registrasi routes sambutan
 	routes.SambutanRoutes(r)
 	routes.AdminRoutes(r)
