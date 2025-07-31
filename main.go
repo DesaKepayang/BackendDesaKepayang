@@ -4,6 +4,7 @@ import (
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
 	"desa-kepayang-backend/routes"
+	"log"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,7 +12,7 @@ import (
 func main() {
 	// Inisialisasi DB dan Migrasi
 	config.InitDB()
-	config.DB.AutoMigrate(
+	err := config.DB.AutoMigrate(
 		&models.SambutanKepalaDesa{},
 		&models.Admin{},
 		&models.Berita{},
@@ -20,6 +21,9 @@ func main() {
 		&models.RTRW{},
 		&models.DataPenduduk{},
 	)
+	if err != nil {
+		log.Fatal("Gagal migrasi DB:", err)
+	}
 
 	// Inisialisasi router
 	r := gin.Default()
