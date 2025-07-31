@@ -13,7 +13,6 @@ func AdminRoutes(r *gin.Engine) {
 		admin.POST("/register", controllers.TambahAdmin) // tanpa auth
 		admin.POST("/login", controllers.LoginAdmin)     // login
 
-		// DIBAWAH INI DILINDUNGI
 		adminAuth := admin.Group("/")
 		adminAuth.Use(middleware.AuthMiddleware())
 		{
