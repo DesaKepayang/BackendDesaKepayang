@@ -98,14 +98,14 @@ func UpdateSambutan(c *gin.Context) {
 		sambutan.KataSambutan = kataSambutan
 	}
 
-	if err := config.DB.Save(&sambutan).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data", "detail": err.Error()})
-		return
-	}
-
 	namaKepalaDesa := c.PostForm("nama_kepaladesa")
 	if namaKepalaDesa != "" {
 		sambutan.NamaKepalaDesa = namaKepalaDesa
+	}
+
+	if err := config.DB.Save(&sambutan).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data", "detail": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Data berhasil diperbarui", "data": sambutan})
