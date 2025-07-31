@@ -13,20 +13,31 @@ import (
 // ==================================
 
 func CreateRTRW(c *gin.Context) {
-	rt := c.PostForm("rt")
-	rw := c.PostForm("rw")
+	var input models.RTRW
+	contentType := c.GetHeader("Content-Type")
 
-	data := models.RTRW{
-		RT: rt,
-		RW: rw,
+	if contentType == "application/json" {
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Format JSON tidak valid"})
+			return
+		}
+	} else {
+		// fallback untuk form-data atau x-www-form-urlencoded
+		input.RT = c.PostForm("rt")
+		input.RW = c.PostForm("rw")
 	}
 
-	if err := config.DB.Create(&data).Error; err != nil {
+	if input.RT == "" || input.RW == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "RT dan RW tidak boleh kosong"})
+		return
+	}
+
+	if err := config.DB.Create(&input).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan data RT/RW"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "RT/RW berhasil ditambahkan", "data": data})
+	c.JSON(http.StatusOK, gin.H{"message": "RT/RW berhasil ditambahkan", "data": input})
 }
 
 // ==================================
