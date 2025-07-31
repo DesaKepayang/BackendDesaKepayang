@@ -61,16 +61,35 @@ func UpdateRTRW(c *gin.Context) {
 	id := c.Param("id")
 	var data models.RTRW
 
+	// Cari data berdasarkan ID
 	if err := config.DB.First(&data, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Data RT/RW tidak ditemukan"})
 		return
 	}
 
-	rt := c.PostForm("rt")
-	rw := c.PostForm("rw")
+	contentType := c.GetHeader("Content-Type")
+	var input models.RTRW
 
-	data.RT = rt
-	data.RW = rw
+	// Bind berdasarkan tipe Content-Type
+	if contentType == "application/json" {
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Format JSON tidak valid"})
+			return
+		}
+	} else {
+		input.RT = c.PostForm("rt")
+		input.RW = c.PostForm("rw")
+	}
+
+	// Validasi sederhana
+	if input.RT == "" || input.RW == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "RT dan RW tidak boleh kosong"})
+		return
+	}
+
+	// Update data
+	data.RT = input.RT
+	data.RW = input.RW
 
 	if err := config.DB.Save(&data).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data RT/RW"})
