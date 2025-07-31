@@ -103,6 +103,11 @@ func UpdateSambutan(c *gin.Context) {
 		return
 	}
 
+	namaKepalaDesa := c.PostForm("nama_kepaladesa")
+	if namaKepalaDesa != "" {
+		sambutan.NamaKepalaDesa = namaKepalaDesa
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Data berhasil diperbarui", "data": sambutan})
 }
 
