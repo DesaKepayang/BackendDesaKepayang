@@ -17,6 +17,7 @@ func main() {
 		&models.Berita{},
 		&models.VisiMisi{},
 		&models.StrukturDesa{},
+		&models.RTRW{},
 	)
 
 	// Inisialisasi router
@@ -28,6 +29,7 @@ func main() {
 	routes.BeritaRoutes(r)
 	routes.VisiMisiRoutes(r)
 	routes.StrukturDesaRoutes(r)
+	routes.RTRWRoutes(r)
 
 	// Root testing
 	r.GET("/", func(c *gin.Context) {
