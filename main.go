@@ -23,6 +23,7 @@ func main() {
 	// Registrasi routes sambutan
 	routes.SambutanRoutes(r)
 	routes.AdminRoutes(r)
+	routes.BeritaRoutes(r)
 
 	// Root testing
 	r.GET("/", func(c *gin.Context) {
