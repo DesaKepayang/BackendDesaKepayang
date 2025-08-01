@@ -13,6 +13,8 @@ import (
 func main() {
 	// Inisialisasi DB dan Migrasi
 	config.InitDB()
+	db := config.DB
+
 	err := config.DB.AutoMigrate(
 		&models.SambutanKepalaDesa{},
 		&models.Admin{},
@@ -24,6 +26,18 @@ func main() {
 	)
 	if err != nil {
 		log.Fatal("Gagal migrasi DB:", err)
+	}
+
+	err = db.Exec(`
+		ALTER TABLE data_penduduk
+		ADD CONSTRAINT fk_penduduk_rtrw
+		FOREIGN KEY (id_rtrw) REFERENCES rt_rw(id_rtrw)
+		ON DELETE RESTRICT
+		ON UPDATE CASCADE
+	`).Error
+
+	if err != nil {
+		log.Println("Peringatan: Gagal menambahkan foreign key (mungkin sudah ada):", err)
 	}
 
 	// Inisialisasi router
