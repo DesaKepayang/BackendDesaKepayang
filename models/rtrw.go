@@ -1,12 +1,9 @@
 package models
 
 type RTRW struct {
-	IDRTRW uint   `gorm:"column:id_rtrw;primaryKey;autoIncrement"`
-	RT     string `gorm:"type:varchar(10);not null"`
-	RW     string `gorm:"type:varchar(10);not null"`
-
-	// TAMBAHKAN relasi yang benar
-	Penduduk []DataPenduduk `gorm:"foreignKey:IDRTRW;references:IDRTRW"`
+	IDRTRW uint   `gorm:"primaryKey;autoIncrement" json:"id_rtrw"`
+	RT     string `gorm:"type:varchar(10);not null" json:"rt"`
+	RW     string `gorm:"type:varchar(10);not null" json:"rw"`
 }
 
 func (RTRW) TableName() string {
