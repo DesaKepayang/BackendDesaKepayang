@@ -8,7 +8,7 @@ type DataPenduduk struct {
 	Agama  string `gorm:"type:varchar(50);not null" json:"agama"`
 	Gender string `gorm:"type:varchar(10);not null" json:"gender"`
 
-	RTRW *RTRW `gorm:"foreignKey:IDRTRW;references:IDRTRW" json:"-"`
+	RTRW RTRW `gorm:"foreignKey:IDRTRW" json:"rtrw"`
 }
 
 func (DataPenduduk) TableName() string {
