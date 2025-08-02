@@ -263,3 +263,16 @@ func LoginAdmin(c *gin.Context) {
 		},
 	})
 }
+
+// =================================
+// =========== [LOGOUT] ============
+// =================================
+
+func LogoutAdmin(c *gin.Context) {
+	// Menghapus cookie dengan mengatur MaxAge menjadi -1
+	c.SetCookie("auth_token", "", -1, "/", "", false, true)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logout berhasil",
+	})
+}
