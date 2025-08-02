@@ -11,12 +11,12 @@ func AdminRoutes(r *gin.Engine) {
 	admin := r.Group("/admin")
 	{
 		admin.POST("/register", controllers.TambahAdmin) // tanpa auth
-		admin.POST("/login", controllers.LoginAdmin)     // login
+		admin.POST("/login", controllers.LoginAdmin)
+		admin.POST("/logout", controllers.LogoutAdmin) // login
 
 		adminAuth := admin.Group("/")
 		adminAuth.Use(middleware.AuthMiddleware())
 		{
-			adminAuth.POST("/logout", controllers.LogoutAdmin)
 			adminAuth.GET("/", controllers.GetAllAdmin)
 			adminAuth.PUT("/:id", controllers.UpdateAdmin)
 			adminAuth.DELETE("/:id", controllers.DeleteAdmin)
