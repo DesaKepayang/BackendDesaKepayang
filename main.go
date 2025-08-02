@@ -2,11 +2,11 @@ package main
 
 import (
 	"desa-kepayang-backend/config"
+	"desa-kepayang-backend/middleware"
 	"desa-kepayang-backend/models"
 	"desa-kepayang-backend/routes"
 	"log"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -44,7 +44,7 @@ func main() {
 
 	// Inisialisasi router
 	r := gin.Default()
-	r.Use(cors.Default())
+	r.Use(middleware.CORSMiddleware())
 
 	// Jadikan folder 'uploads/' sebagai folder statis
 	r.Static("/uploads", "./uploads")
