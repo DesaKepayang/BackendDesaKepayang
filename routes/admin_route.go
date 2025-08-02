@@ -17,7 +17,7 @@ func AdminRoutes(r *gin.Engine) {
 		adminAuth := admin.Group("/")
 		adminAuth.Use(middleware.AuthMiddleware())
 		{
-			admin.OPTIONS("/logout", func(c *gin.Context) {
+			adminAuth.OPTIONS("/logout", func(c *gin.Context) {
 				c.Status(http.StatusOK)
 			})
 			adminAuth.GET("/", controllers.GetAllAdmin)
