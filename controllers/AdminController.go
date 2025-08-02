@@ -206,13 +206,12 @@ func LoginAdmin(c *gin.Context) {
 		Password string `json:"password" binding:"required,min=6,max=100"`
 	}
 
-	// Validasi input JSON
+	// Validasi input
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
 		return
 	}
 
-	// Sanitasi tambahan (hindari SSRF dengan validasi ketat username)
 	username := strings.TrimSpace(input.Username)
 	password := input.Password
 
@@ -222,21 +221,17 @@ func LoginAdmin(c *gin.Context) {
 	}
 
 	var admin models.Admin
-
-	// Cegah SQL Injection dengan penggunaan GORM yang aman
-	err := config.DB.Where("username = ?", username).First(&admin).Error
-	if err != nil {
+	if err := config.DB.Where("username = ?", username).First(&admin).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Username atau password salah"})
 		return
 	}
 
-	// Verifikasi password (bcrypt aman dari timing attacks umum)
 	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Username atau password salah"})
 		return
 	}
 
-	// Generate JWT token dengan claim aman
+	// Generate JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":       admin.ID,
 		"username": admin.Username,
@@ -250,13 +245,17 @@ func LoginAdmin(c *gin.Context) {
 		return
 	}
 
-	// Set token dalam cookie HttpOnly (CSRF protection tambahan)
-	c.SetCookie("auth_token", tokenString, 3600*72, "/", "", false, true) // HttpOnly=true
+	// Set cookie HttpOnly
+	secure := false
+	if gin.Mode() == gin.ReleaseMode {
+		secure = true // hanya diaktifkan di production (HTTPS)
+	}
 
-	// Kirim token & data admin ke frontend
+	c.SetCookie("auth_token", tokenString, 72*3600, "/", "", secure, true) // HttpOnly = true
+
+	// Response ke frontend (boleh kirim data admin tapi token tidak perlu karena sudah di cookie)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login berhasil",
-		"token":   tokenString,
 		"admin": gin.H{
 			"id":       admin.ID,
 			"username": admin.Username,
