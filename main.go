@@ -23,6 +23,7 @@ func main() {
 		&models.RTRW{},
 		&models.DataPenduduk{},
 		&models.JumlahKK{},
+		&models.Komentar{},
 	)
 	if err != nil {
 		log.Fatal("Gagal migrasi DB:", err)
@@ -55,11 +56,7 @@ func main() {
 	routes.RTRWRoutes(r)
 	routes.PendudukRoutes(r)
 	routes.JumlahKKRoutes(r)
-
-	// Root testing
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "Halo dari Gin!"})
-	})
+	routes.KomentarRoutes(r)
 
 	// Jalankan server
 	r.Run()
