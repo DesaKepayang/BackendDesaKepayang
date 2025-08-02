@@ -2,7 +2,6 @@ package main
 
 import (
 	"desa-kepayang-backend/config"
-	"desa-kepayang-backend/controllers"
 	"desa-kepayang-backend/models"
 	"desa-kepayang-backend/routes"
 	"log"
@@ -43,11 +42,6 @@ func main() {
 	// Inisialisasi router
 	r := gin.Default()
 
-	r.POST("/data_penduduk", controllers.CreatePenduduk)
-	r.GET("/data_penduduk", controllers.GetAllPenduduk)
-	r.PUT("/data_penduduk/:id", controllers.UpdatePenduduk)
-	r.DELETE("/data_penduduk/:id", controllers.DeletePenduduk)
-
 	// Jadikan folder 'uploads/' sebagai folder statis
 	r.Static("/uploads", "./uploads")
 
@@ -58,6 +52,7 @@ func main() {
 	routes.VisiMisiRoutes(r)
 	routes.StrukturDesaRoutes(r)
 	routes.RTRWRoutes(r)
+	routes.PendudukRoutes(r)
 
 	// Root testing
 	r.GET("/", func(c *gin.Context) {

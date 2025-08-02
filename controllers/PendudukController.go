@@ -98,6 +98,19 @@ func GetAllPenduduk(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func CountPenduduk(c *gin.Context) {
+	var count int64
+
+	if err := config.DB.Model(&models.DataPenduduk{}).Count(&count).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghitung jumlah penduduk"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"jumlah_penduduk": count,
+	})
+}
+
 // ==================================
 // =========== [UPDATE] =============
 // ==================================
