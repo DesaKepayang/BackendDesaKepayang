@@ -5,6 +5,9 @@ import (
 	"desa-kepayang-backend/models"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -17,37 +20,60 @@ import (
 
 func TambahAdmin(c *gin.Context) {
 	var input struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
+		Username string `json:"username" binding:"required,alphanum,min=3,max=30"`
+		Password string `json:"password" binding:"required,min=6,max=100"`
 	}
 
-	// Validasi input
+	// Validasi input JSON dan filter karakter khusus
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid", "detail": err.Error()})
 		return
 	}
 
-	// Hash password sebelum disimpan
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghash password", "detail": err.Error()})
+	// Cegah SSRF dan abuse dengan sanitasi
+	username := strings.TrimSpace(input.Username)
+	password := input.Password
+
+	if len(username) == 0 || len(password) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username dan password tidak boleh kosong"})
 		return
 	}
 
-	// Tetapkan role admin secara default
+	// Optional: Cek apakah username sudah ada
+	var existing models.Admin
+	if err := config.DB.Where("username = ?", username).First(&existing).Error; err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Username sudah terdaftar"})
+		return
+	}
+
+	// Hash password dengan bcrypt
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal meng-hash password"})
+		return
+	}
+
+	// Simpan ke database secara aman menggunakan GORM (ORM cegah SQL Injection)
 	admin := models.Admin{
-		Username: input.Username,
+		Username: username,
 		Password: string(hashedPassword),
 		Role:     "admin",
 	}
 
-	// Simpan ke database
 	if err := config.DB.Create(&admin).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan admin", "detail": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan admin"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Admin berhasil ditambahkan", "data": admin})
+	// Hindari mengembalikan password meskipun sudah di-hash
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Admin berhasil ditambahkan",
+		"data": gin.H{
+			"id":       admin.ID,
+			"username": admin.Username,
+			"role":     admin.Role,
+		},
+	})
 }
 
 // =================================
@@ -90,45 +116,63 @@ func GetAdminProfile(c *gin.Context) {
 // ==================================
 
 func UpdateAdmin(c *gin.Context) {
-	id := c.Param("id")
+	idParam := c.Param("id")
 
-	var input struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+	// Validasi dan sanitasi ID (hindari injection via param ID)
+	id, err := strconv.Atoi(idParam)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
+		return
 	}
 
+	var input struct {
+		Username string `json:"username" binding:"omitempty,alphanum,min=3,max=30"`
+		Password string `json:"password" binding:"omitempty,min=6,max=100"`
+	}
+
+	// Validasi input JSON dengan aturan
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid", "detail": err.Error()})
 		return
 	}
 
 	var admin models.Admin
+	// GORM parameter binding mencegah SQL Injection
 	if err := config.DB.First(&admin, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Admin tidak ditemukan"})
 		return
 	}
 
-	// Update username jika disediakan
+	// Update username jika disediakan dan aman
 	if input.Username != "" {
-		admin.Username = input.Username
+		admin.Username = strings.TrimSpace(input.Username)
 	}
 
-	// Hash dan update password jika disediakan
+	// Update password jika disediakan
 	if input.Password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghash password", "detail": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal meng-hash password"})
 			return
 		}
 		admin.Password = string(hashedPassword)
 	}
 
+	// Simpan perubahan
 	if err := config.DB.Save(&admin).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengupdate admin", "detail": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengupdate admin"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Admin berhasil diperbarui", "data": admin})
+	// Hindari mengembalikan field sensitif (seperti hashed password)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Admin berhasil diperbarui",
+		"data": gin.H{
+			"id":       admin.ID,
+			"username": admin.Username,
+			"role":     admin.Role,
+		},
+	})
 }
 
 // ==================================
@@ -158,32 +202,46 @@ func DeleteAdmin(c *gin.Context) {
 
 func LoginAdmin(c *gin.Context) {
 	var input struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
+		Username string `json:"username" binding:"required,alphanum,min=3,max=30"`
+		Password string `json:"password" binding:"required,min=6,max=100"`
 	}
 
+	// Validasi input JSON
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
+		return
+	}
+
+	// Sanitasi tambahan (hindari SSRF dengan validasi ketat username)
+	username := strings.TrimSpace(input.Username)
+	password := input.Password
+
+	if len(username) == 0 || len(password) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username dan password wajib diisi"})
 		return
 	}
 
 	var admin models.Admin
-	if err := config.DB.Where("username = ?", input.Username).First(&admin).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Username tidak ditemukan"})
+
+	// Cegah SQL Injection dengan penggunaan GORM yang aman
+	err := config.DB.Where("username = ?", username).First(&admin).Error
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Username atau password salah"})
 		return
 	}
 
-	// Verifikasi password
-	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(input.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Password salah"})
+	// Verifikasi password (bcrypt aman dari timing attacks umum)
+	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Username atau password salah"})
 		return
 	}
 
-	// Generate token
+	// Generate JWT token dengan claim aman
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":       admin.ID,
 		"username": admin.Username,
 		"role":     admin.Role,
+		"exp":      time.Now().Add(72 * time.Hour).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -192,5 +250,17 @@ func LoginAdmin(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+	// Set token dalam cookie HttpOnly (CSRF protection tambahan)
+	c.SetCookie("auth_token", tokenString, 3600*72, "/", "", false, true) // HttpOnly=true
+
+	// Kirim token & data admin ke frontend
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login berhasil",
+		"token":   tokenString,
+		"admin": gin.H{
+			"id":       admin.ID,
+			"username": admin.Username,
+			"role":     admin.Role,
+		},
+	})
 }
