@@ -16,6 +16,7 @@ func AdminRoutes(r *gin.Engine) {
 		adminAuth := admin.Group("/")
 		adminAuth.Use(middleware.AuthMiddleware())
 		{
+			adminAuth.POST("/logout", controllers.LogoutAdmin)
 			adminAuth.GET("/", controllers.GetAllAdmin)
 			adminAuth.PUT("/:id", controllers.UpdateAdmin)
 			adminAuth.DELETE("/:id", controllers.DeleteAdmin)
