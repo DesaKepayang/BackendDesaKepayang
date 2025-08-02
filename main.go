@@ -54,6 +54,7 @@ func main() {
 	routes.StrukturDesaRoutes(r)
 	routes.RTRWRoutes(r)
 	routes.PendudukRoutes(r)
+	routes.JumlahKKRoutes(r)
 
 	// Root testing
 	r.GET("/", func(c *gin.Context) {
