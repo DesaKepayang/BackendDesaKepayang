@@ -111,6 +111,32 @@ func CountPenduduk(c *gin.Context) {
 	})
 }
 
+func CountPendudukByGender(c *gin.Context) {
+	var lakiLaki int64
+	var perempuan int64
+
+	// Hitung jumlah laki-laki
+	if err := config.DB.Model(&models.DataPenduduk{}).
+		Where("gender = ?", "Laki-laki").
+		Count(&lakiLaki).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghitung jumlah laki-laki"})
+		return
+	}
+
+	// Hitung jumlah perempuan
+	if err := config.DB.Model(&models.DataPenduduk{}).
+		Where("gender = ?", "Perempuan").
+		Count(&perempuan).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghitung jumlah perempuan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"jumlah_laki_laki": lakiLaki,
+		"jumlah_perempuan": perempuan,
+	})
+}
+
 // ==================================
 // =========== [UPDATE] =============
 // ==================================
