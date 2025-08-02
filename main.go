@@ -22,6 +22,7 @@ func main() {
 		&models.StrukturDesa{},
 		&models.RTRW{},
 		&models.DataPenduduk{},
+		&models.JumlahKK{},
 	)
 	if err != nil {
 		log.Fatal("Gagal migrasi DB:", err)
