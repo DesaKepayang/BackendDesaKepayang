@@ -3,6 +3,7 @@ package routes
 import (
 	"desa-kepayang-backend/controllers"
 	"desa-kepayang-backend/middleware"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +17,9 @@ func AdminRoutes(r *gin.Engine) {
 		adminAuth := admin.Group("/")
 		adminAuth.Use(middleware.AuthMiddleware())
 		{
-			adminAuth.POST("/logout", controllers.LogoutAdmin)
+			admin.OPTIONS("/logout", func(c *gin.Context) {
+				c.Status(http.StatusOK)
+			})
 			adminAuth.GET("/", controllers.GetAllAdmin)
 			adminAuth.PUT("/:id", controllers.UpdateAdmin)
 			adminAuth.DELETE("/:id", controllers.DeleteAdmin)

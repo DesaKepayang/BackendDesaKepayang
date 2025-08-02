@@ -9,7 +9,7 @@ import (
 
 func CORSMiddleware() gin.HandlerFunc {
 	config := cors.Config{
-		AllowOrigins:     []string{"*"}, // Bisa diganti dengan domain tertentu
+		AllowOrigins:     []string{"https://desakepayangbackend-production.up.railway.app"}, // Bisa diganti dengan domain tertentu
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowCredentials: true,
