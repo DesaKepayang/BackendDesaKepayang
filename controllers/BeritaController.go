@@ -1,7 +1,10 @@
 package controllers
 
 import (
+	"desa-kepayang-backend/helpers"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
@@ -14,24 +17,37 @@ import (
 // ==================================
 
 func CreateBerita(c *gin.Context) {
-	judul := c.PostForm("judul")
-	deskripsi := c.PostForm("deskripsi")
+	judul := helpers.SanitizeText(c.PostForm("judul"))
+	deskripsi := helpers.SanitizeText(c.PostForm("deskripsi"))
 
-	// Ambil file gambar dari form-data
-	file, err := c.FormFile("foto")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal mengambil file foto"})
+	if judul == "" || deskripsi == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Judul dan deskripsi wajib diisi"})
 		return
 	}
 
-	// Simpan file ke folder lokal
-	path := "uploads/" + file.Filename
+	file, err := c.FormFile("foto")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File foto wajib diunggah"})
+		return
+	}
+
+	if file.Size > 2*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
+		return
+	}
+
+	uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
+	if uniqueFileName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
+		return
+	}
+
+	path := filepath.Join("uploads", uniqueFileName)
 	if err := c.SaveUploadedFile(file, path); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file"})
 		return
 	}
 
-	// Simpan data berita ke database
 	berita := models.Berita{
 		Judul:     judul,
 		Deskripsi: deskripsi,
@@ -39,6 +55,7 @@ func CreateBerita(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&berita).Error; err != nil {
+		os.Remove(path)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan berita"})
 		return
 	}
@@ -69,33 +86,46 @@ func UpdateBerita(c *gin.Context) {
 	id := c.Param("id")
 	var berita models.Berita
 
-	// Cari data berita berdasarkan ID
 	if err := config.DB.First(&berita, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Berita tidak ditemukan"})
 		return
 	}
 
-	// Ambil data form
-	judul := c.PostForm("judul")
-	deskripsi := c.PostForm("deskripsi")
+	judul := helpers.SanitizeText(c.PostForm("judul"))
+	deskripsi := helpers.SanitizeText(c.PostForm("deskripsi"))
 
-	// Perbarui data judul dan deskripsi
-	berita.Judul = judul
-	berita.Deskripsi = deskripsi
+	if judul != "" {
+		berita.Judul = judul
+	}
+	if deskripsi != "" {
+		berita.Deskripsi = deskripsi
+	}
 
-	// Cek apakah ada file baru dikirim
 	file, err := c.FormFile("foto")
 	if err == nil {
-		// Jika ada file baru, simpan ke folder dan perbarui path
-		path := "uploads/" + file.Filename
-		if err := c.SaveUploadedFile(file, path); err != nil {
+		if file.Size > 2*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
+			return
+		}
+
+		uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
+		if uniqueFileName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
+			return
+		}
+
+		newPath := filepath.Join("uploads", uniqueFileName)
+		if err := c.SaveUploadedFile(file, newPath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file baru"})
 			return
 		}
-		berita.Foto = path
+
+		if berita.Foto != "" {
+			_ = os.Remove(berita.Foto)
+		}
+		berita.Foto = newPath
 	}
 
-	// Simpan perubahan
 	if err := config.DB.Save(&berita).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengupdate berita"})
 		return
@@ -112,16 +142,18 @@ func DeleteBerita(c *gin.Context) {
 	id := c.Param("id")
 	var berita models.Berita
 
-	// Cari berita berdasarkan ID
 	if err := config.DB.First(&berita, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Berita tidak ditemukan"})
 		return
 	}
 
-	// Hapus berita
 	if err := config.DB.Delete(&berita).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus berita"})
 		return
+	}
+
+	if berita.Foto != "" {
+		_ = os.Remove(berita.Foto)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Berita berhasil dihapus"})

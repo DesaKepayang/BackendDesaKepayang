@@ -2,40 +2,22 @@ package controllers
 
 import (
 	"desa-kepayang-backend/config"
+	"desa-kepayang-backend/helpers"
 	"desa-kepayang-backend/models"
-	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
-
-func generateUniqueFileName(originalName string) string {
-	timestamp := time.Now().UnixNano()
-	random := rand.Intn(9999)
-	ext := filepath.Ext(originalName)
-	safeExt := strings.ToLower(ext)
-	if safeExt != ".jpg" && safeExt != ".jpeg" && safeExt != ".png" && safeExt != ".webp" {
-		return "" // invalid extension
-	}
-	return fmt.Sprintf("%d_%d%s", timestamp, random, safeExt)
-}
-
-func sanitizeText(input string) string {
-	return strings.TrimSpace(strings.ReplaceAll(input, "<", ""))
-}
 
 // ==================================
 // ========== [CREATE] ==============
 // ==================================
 
 func CreateStrukturDesa(c *gin.Context) {
-	nama := sanitizeText(c.PostForm("nama"))
-	jabatan := sanitizeText(c.PostForm("jabatan"))
+	nama := helpers.SanitizeText(c.PostForm("nama"))
+	jabatan := helpers.SanitizeText(c.PostForm("jabatan"))
 
 	if nama == "" || jabatan == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama dan jabatan wajib diisi"})
@@ -53,7 +35,7 @@ func CreateStrukturDesa(c *gin.Context) {
 		return
 	}
 
-	uniqueFileName := generateUniqueFileName(file.Filename)
+	uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
 	if uniqueFileName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
 		return
@@ -133,8 +115,8 @@ func UpdateStrukturDesa(c *gin.Context) {
 		return
 	}
 
-	nama := sanitizeText(c.PostForm("nama"))
-	jabatan := sanitizeText(c.PostForm("jabatan"))
+	nama := helpers.SanitizeText(c.PostForm("nama"))
+	jabatan := helpers.SanitizeText(c.PostForm("jabatan"))
 
 	if nama != "" {
 		struktur.Nama = nama
@@ -150,7 +132,7 @@ func UpdateStrukturDesa(c *gin.Context) {
 			return
 		}
 
-		uniqueFileName := generateUniqueFileName(file.Filename)
+		uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
 		if uniqueFileName == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
 			return
