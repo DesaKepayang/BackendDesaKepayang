@@ -4,6 +4,8 @@ import (
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
@@ -74,14 +76,26 @@ func UpdateStrukturDesa(c *gin.Context) {
 	struktur.Nama = nama
 	struktur.Jabatan = jabatan
 
+	// Jika ada file baru yang diupload
 	file, err := c.FormFile("foto")
 	if err == nil {
-		path := "uploads/" + file.Filename
-		if err := c.SaveUploadedFile(file, path); err != nil {
+		// Hapus file lama terlebih dahulu jika ada
+		if struktur.Foto != "" {
+			oldFilePath := struktur.Foto
+			if err := os.Remove(oldFilePath); err != nil {
+				// Tidak harus return, bisa hanya log atau abaikan jika file tidak ditemukan
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus file lama"})
+				return
+			}
+		}
+
+		// Simpan file baru
+		newPath := filepath.Join("uploads", file.Filename)
+		if err := c.SaveUploadedFile(file, newPath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file baru"})
 			return
 		}
-		struktur.Foto = path
+		struktur.Foto = newPath
 	}
 
 	if err := config.DB.Save(&struktur).Error; err != nil {
