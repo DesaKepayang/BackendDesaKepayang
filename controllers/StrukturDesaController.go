@@ -4,11 +4,11 @@ import (
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +18,15 @@ func generateUniqueFileName(originalName string) string {
 	timestamp := time.Now().UnixNano()
 	random := rand.Intn(9999)
 	ext := filepath.Ext(originalName)
-	return fmt.Sprintf("%d_%d%s", timestamp, random, ext)
+	safeExt := strings.ToLower(ext)
+	if safeExt != ".jpg" && safeExt != ".jpeg" && safeExt != ".png" && safeExt != ".webp" {
+		return "" // invalid extension
+	}
+	return fmt.Sprintf("%d_%d%s", timestamp, random, safeExt)
+}
+
+func sanitizeText(input string) string {
+	return strings.TrimSpace(strings.ReplaceAll(input, "<", ""))
 }
 
 // ==================================
@@ -26,18 +34,31 @@ func generateUniqueFileName(originalName string) string {
 // ==================================
 
 func CreateStrukturDesa(c *gin.Context) {
-	nama := c.PostForm("nama")
-	jabatan := c.PostForm("jabatan")
+	nama := sanitizeText(c.PostForm("nama"))
+	jabatan := sanitizeText(c.PostForm("jabatan"))
 
-	file, err := c.FormFile("foto")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal mengambil file foto"})
+	if nama == "" || jabatan == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Nama dan jabatan wajib diisi"})
 		return
 	}
 
-	// Generate nama file unik
+	file, err := c.FormFile("foto")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File foto wajib diunggah"})
+		return
+	}
+
+	if file.Size > 2*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
+		return
+	}
+
 	uniqueFileName := generateUniqueFileName(file.Filename)
-	path := "uploads/" + uniqueFileName // Gunakan nama unik
+	if uniqueFileName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
+		return
+	}
+	path := filepath.Join("uploads", uniqueFileName)
 
 	if err := c.SaveUploadedFile(file, path); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file"})
@@ -51,6 +72,7 @@ func CreateStrukturDesa(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&struktur).Error; err != nil {
+		os.Remove(path) // cleanup file jika gagal simpan DB
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan struktur desa"})
 		return
 	}
@@ -69,22 +91,20 @@ func GetAllStrukturDesa(c *gin.Context) {
 		return
 	}
 
-	// Ambil semua path foto yang masih digunakan
 	var usedPaths []string
 	for _, s := range data {
 		usedPaths = append(usedPaths, s.Foto)
 	}
 
-	// Bersihkan file yang tidak digunakan di folder uploads
 	cleanupUnusedFiles("uploads", usedPaths)
 
 	c.JSON(http.StatusOK, data)
 }
 
 func cleanupUnusedFiles(folder string, usedPaths []string) {
-	files, err := ioutil.ReadDir(folder)
+	files, err := os.ReadDir(folder)
 	if err != nil {
-		return // Gagal membaca folder, abaikan
+		return
 	}
 
 	used := make(map[string]bool)
@@ -94,7 +114,7 @@ func cleanupUnusedFiles(folder string, usedPaths []string) {
 	}
 
 	for _, file := range files {
-		if !used[file.Name()] {
+		if !file.IsDir() && !used[file.Name()] {
 			os.Remove(filepath.Join(folder, file.Name()))
 		}
 	}
@@ -106,37 +126,45 @@ func cleanupUnusedFiles(folder string, usedPaths []string) {
 
 func UpdateStrukturDesa(c *gin.Context) {
 	id := c.Param("id")
-	var struktur models.StrukturDesa
 
+	var struktur models.StrukturDesa
 	if err := config.DB.First(&struktur, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Struktur desa tidak ditemukan"})
 		return
 	}
 
-	nama := c.PostForm("nama")
-	jabatan := c.PostForm("jabatan")
+	nama := sanitizeText(c.PostForm("nama"))
+	jabatan := sanitizeText(c.PostForm("jabatan"))
 
-	struktur.Nama = nama
-	struktur.Jabatan = jabatan
+	if nama != "" {
+		struktur.Nama = nama
+	}
+	if jabatan != "" {
+		struktur.Jabatan = jabatan
+	}
 
 	file, err := c.FormFile("foto")
 	if err == nil {
-		// Generate nama file unik
-		uniqueFileName := generateUniqueFileName(file.Filename)
-		newPath := filepath.Join("uploads", uniqueFileName) // Gunakan nama unik
+		if file.Size > 2*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
+			return
+		}
 
-		// Simpan file baru
+		uniqueFileName := generateUniqueFileName(file.Filename)
+		if uniqueFileName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
+			return
+		}
+		newPath := filepath.Join("uploads", uniqueFileName)
+
 		if err := c.SaveUploadedFile(file, newPath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file baru"})
 			return
 		}
 
-		// Hapus file lama setelah file baru berhasil disimpan
+		// Hapus file lama
 		if struktur.Foto != "" {
-			if err := os.Remove(struktur.Foto); err != nil {
-				// Tidak perlu return error, hanya log jika diperlukan
-				fmt.Printf("Gagal menghapus file lama: %v\n", err)
-			}
+			_ = os.Remove(struktur.Foto)
 		}
 		struktur.Foto = newPath
 	}
@@ -155,8 +183,8 @@ func UpdateStrukturDesa(c *gin.Context) {
 
 func DeleteStrukturDesa(c *gin.Context) {
 	id := c.Param("id")
-	var struktur models.StrukturDesa
 
+	var struktur models.StrukturDesa
 	if err := config.DB.First(&struktur, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Struktur desa tidak ditemukan"})
 		return
@@ -165,6 +193,10 @@ func DeleteStrukturDesa(c *gin.Context) {
 	if err := config.DB.Delete(&struktur).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus struktur desa"})
 		return
+	}
+
+	if struktur.Foto != "" {
+		_ = os.Remove(struktur.Foto)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Struktur desa berhasil dihapus"})
