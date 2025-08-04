@@ -3,6 +3,7 @@ package controllers
 import (
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -54,7 +55,36 @@ func GetAllStrukturDesa(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data"})
 		return
 	}
+
+	// Ambil semua path foto yang masih digunakan
+	var usedPaths []string
+	for _, s := range data {
+		usedPaths = append(usedPaths, s.Foto)
+	}
+
+	// Bersihkan file yang tidak digunakan di folder uploads
+	cleanupUnusedFiles("uploads", usedPaths)
+
 	c.JSON(http.StatusOK, data)
+}
+
+func cleanupUnusedFiles(folder string, usedPaths []string) {
+	files, err := ioutil.ReadDir(folder)
+	if err != nil {
+		return // Gagal membaca folder, abaikan
+	}
+
+	used := make(map[string]bool)
+	for _, path := range usedPaths {
+		_, file := filepath.Split(path)
+		used[file] = true
+	}
+
+	for _, file := range files {
+		if !used[file.Name()] {
+			os.Remove(filepath.Join(folder, file.Name()))
+		}
+	}
 }
 
 // ==================================
