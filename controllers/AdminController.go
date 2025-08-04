@@ -251,11 +251,11 @@ func LoginAdmin(c *gin.Context) {
 		secure = true // hanya diaktifkan di production (HTTPS)
 	}
 
-	c.SetCookie("auth_token", tokenString, 72*3600, "/", "", secure, true) // HttpOnly = true
+	c.SetCookie("auth_token", tokenString, 72*3600, "/", "", secure, true)
 
-	// Response ke frontend (boleh kirim data admin tapi token tidak perlu karena sudah di cookie)
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login berhasil",
+		"token":   tokenString, // ⬅️ tambahkan ini agar frontend bisa pakai token
 		"admin": gin.H{
 			"id":       admin.ID,
 			"username": admin.Username,

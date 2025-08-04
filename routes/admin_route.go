@@ -10,9 +10,9 @@ import (
 func AdminRoutes(r *gin.Engine) {
 	admin := r.Group("/admin")
 	{
-		admin.POST("/register", controllers.TambahAdmin) // tanpa auth
+		admin.POST("/register", controllers.TambahAdmin)
 		admin.POST("/login", controllers.LoginAdmin)
-		admin.POST("/logout", controllers.LogoutAdmin) // login
+		admin.POST("/logout", controllers.LogoutAdmin)
 
 		adminAuth := admin.Group("/")
 		adminAuth.Use(middleware.AuthMiddleware())
