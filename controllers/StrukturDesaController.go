@@ -3,13 +3,23 @@ package controllers
 import (
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+func generateUniqueFileName(originalName string) string {
+	timestamp := time.Now().UnixNano()
+	random := rand.Intn(9999)
+	ext := filepath.Ext(originalName)
+	return fmt.Sprintf("%d_%d%s", timestamp, random, ext)
+}
 
 // ==================================
 // ========== [CREATE] ==============
@@ -25,7 +35,10 @@ func CreateStrukturDesa(c *gin.Context) {
 		return
 	}
 
-	path := "uploads/" + file.Filename
+	// Generate nama file unik
+	uniqueFileName := generateUniqueFileName(file.Filename)
+	path := "uploads/" + uniqueFileName // Gunakan nama unik
+
 	if err := c.SaveUploadedFile(file, path); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file"})
 		return
@@ -106,24 +119,24 @@ func UpdateStrukturDesa(c *gin.Context) {
 	struktur.Nama = nama
 	struktur.Jabatan = jabatan
 
-	// Jika ada file baru yang diupload
 	file, err := c.FormFile("foto")
 	if err == nil {
-		// Hapus file lama terlebih dahulu jika ada
-		if struktur.Foto != "" {
-			oldFilePath := struktur.Foto
-			if err := os.Remove(oldFilePath); err != nil {
-				// Tidak harus return, bisa hanya log atau abaikan jika file tidak ditemukan
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus file lama"})
-				return
-			}
-		}
+		// Generate nama file unik
+		uniqueFileName := generateUniqueFileName(file.Filename)
+		newPath := filepath.Join("uploads", uniqueFileName) // Gunakan nama unik
 
 		// Simpan file baru
-		newPath := filepath.Join("uploads", file.Filename)
 		if err := c.SaveUploadedFile(file, newPath); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file baru"})
 			return
+		}
+
+		// Hapus file lama setelah file baru berhasil disimpan
+		if struktur.Foto != "" {
+			if err := os.Remove(struktur.Foto); err != nil {
+				// Tidak perlu return error, hanya log jika diperlukan
+				fmt.Printf("Gagal menghapus file lama: %v\n", err)
+			}
 		}
 		struktur.Foto = newPath
 	}
