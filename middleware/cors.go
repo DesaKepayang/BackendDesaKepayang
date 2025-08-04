@@ -9,10 +9,12 @@ import (
 
 func CORSMiddleware() gin.HandlerFunc {
 	config := cors.Config{
-		AllowAllOrigins: true, // ⬅️ Ubah ini untuk mengizinkan semua origin
-		AllowMethods:    []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:    []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		MaxAge:          12 * time.Hour,
+		AllowOrigins:     []string{"http://localhost:3000"}, // ✅ asal spesifik
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowCredentials: true, // ✅ izinkan kirim cookie
+		MaxAge:           12 * time.Hour,
 	}
+
 	return cors.New(config)
 }
