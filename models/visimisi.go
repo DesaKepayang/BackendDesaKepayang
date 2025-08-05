@@ -6,6 +6,8 @@ type VisiMisi struct {
 	Misi       string `gorm:"type:varchar(855);not null"`
 }
 
+//hilangkan foto pada tabel visi misi
+
 func (VisiMisi) TableName() string {
 	return "visi_misi"
 }
