@@ -26,6 +26,9 @@ func main() {
 		&models.JumlahKK{},
 		&models.Komentar{},
 	)
+
+	models.DropFotoColumn(db)
+
 	if err != nil {
 		log.Fatal("Gagal migrasi DB:", err)
 	}
