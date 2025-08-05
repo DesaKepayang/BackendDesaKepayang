@@ -78,28 +78,9 @@ func GetAllStrukturDesa(c *gin.Context) {
 		usedPaths = append(usedPaths, s.Foto)
 	}
 
-	cleanupUnusedFiles("uploads", usedPaths)
+	helpers.CleanupUnusedFiles("uploads", usedPaths) // Pakai dari helpers
 
 	c.JSON(http.StatusOK, data)
-}
-
-func cleanupUnusedFiles(folder string, usedPaths []string) {
-	files, err := os.ReadDir(folder)
-	if err != nil {
-		return
-	}
-
-	used := make(map[string]bool)
-	for _, path := range usedPaths {
-		_, file := filepath.Split(path)
-		used[file] = true
-	}
-
-	for _, file := range files {
-		if !file.IsDir() && !used[file.Name()] {
-			os.Remove(filepath.Join(folder, file.Name()))
-		}
-	}
 }
 
 // ==================================

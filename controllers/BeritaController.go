@@ -75,6 +75,14 @@ func GetAllBerita(c *gin.Context) {
 		return
 	}
 
+	// Tambahkan cleanup di sini
+	var usedPaths []string
+	for _, b := range daftarBerita {
+		usedPaths = append(usedPaths, b.Foto)
+	}
+
+	helpers.CleanupUnusedFiles("uploads", usedPaths)
+
 	c.JSON(http.StatusOK, daftarBerita)
 }
 

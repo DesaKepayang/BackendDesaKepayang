@@ -3,6 +3,7 @@ package helpers
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -23,4 +24,24 @@ func GenerateUniqueFileName(originalName string) string {
 // Fungsi untuk menyaring karakter tidak aman
 func SanitizeText(input string) string {
 	return strings.TrimSpace(strings.ReplaceAll(input, "<", ""))
+}
+
+// Fungsi untuk membersihkan file tidak terpakai [BARU]
+func CleanupUnusedFiles(folder string, usedPaths []string) {
+	files, err := os.ReadDir(folder)
+	if err != nil {
+		return
+	}
+
+	used := make(map[string]bool)
+	for _, path := range usedPaths {
+		_, file := filepath.Split(path)
+		used[file] = true
+	}
+
+	for _, file := range files {
+		if !file.IsDir() && !used[file.Name()] {
+			os.Remove(filepath.Join(folder, file.Name()))
+		}
+	}
 }
