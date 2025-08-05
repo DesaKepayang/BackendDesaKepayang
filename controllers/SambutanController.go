@@ -16,6 +16,16 @@ import (
 // ==================================
 
 func TambahSambutan(c *gin.Context) {
+	// Cek apakah sudah ada data sambutan
+	var count int64
+	config.DB.Model(&models.SambutanKepalaDesa{}).Count(&count)
+	if count >= 1 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Hanya boleh ada 1 data sambutan. Hapus atau update data lama sebelum menambah baru.",
+		})
+		return
+	}
+
 	// Ambil dan validasi input teks
 	kataSambutan := helpers.SanitizeText(c.PostForm("kata_sambutan"))
 	namaKepalaDesa := helpers.SanitizeText(c.PostForm("nama_kepaladesa"))

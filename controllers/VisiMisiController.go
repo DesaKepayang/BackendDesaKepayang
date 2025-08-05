@@ -16,6 +16,15 @@ import (
 // ==================================
 
 func CreateVisiMisi(c *gin.Context) {
+	var count int64
+	config.DB.Model(&models.VisiMisi{}).Count(&count)
+	if count >= 1 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Hanya boleh ada 1 data visi misi. Hapus atau update data lama sebelum menambah baru.",
+		})
+		return
+	}
+
 	var input models.VisiMisi
 
 	if err := c.ShouldBindJSON(&input); err != nil {
