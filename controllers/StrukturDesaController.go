@@ -73,13 +73,6 @@ func GetAllStrukturDesa(c *gin.Context) {
 		return
 	}
 
-	var usedPaths []string
-	for _, s := range data {
-		usedPaths = append(usedPaths, s.Foto)
-	}
-
-	helpers.CleanupUnusedFiles("uploads", usedPaths) // Pakai dari helpers
-
 	c.JSON(http.StatusOK, data)
 }
 

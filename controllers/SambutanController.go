@@ -87,15 +87,6 @@ func GetSambutan(c *gin.Context) {
 		return
 	}
 
-	// Ambil semua path yang sedang digunakan
-	var usedPaths []string
-	for _, s := range sambutans {
-		usedPaths = append(usedPaths, s.Foto)
-	}
-
-	// Bersihkan file yang tidak digunakan
-	helpers.CleanupUnusedFiles("uploads", usedPaths)
-
 	c.JSON(http.StatusOK, gin.H{"data": sambutans})
 }
 
