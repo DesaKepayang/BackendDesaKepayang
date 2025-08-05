@@ -2,8 +2,7 @@ package controllers
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
+	"strings"
 
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/helpers"
@@ -17,50 +16,29 @@ import (
 // ==================================
 
 func CreateVisiMisi(c *gin.Context) {
-	visi := helpers.SanitizeText(c.PostForm("visi"))
-	misi := helpers.SanitizeText(c.PostForm("misi"))
+	var input models.VisiMisi
 
-	if visi == "" || misi == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Visi dan misi wajib diisi"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
 		return
 	}
 
-	file, err := c.FormFile("foto")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File foto wajib diunggah"})
+	// Sanitasi input
+	input.Visi = helpers.SanitizeText(input.Visi)
+	input.Misi = helpers.SanitizeText(input.Misi)
+
+	// Validasi input
+	if strings.TrimSpace(input.Visi) == "" || strings.TrimSpace(input.Misi) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Visi dan Misi tidak boleh kosong"})
 		return
 	}
 
-	if file.Size > 2*1024*1024 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
+	if err := config.DB.Create(&input).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan visi misi ke database"})
 		return
 	}
 
-	uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
-	if uniqueFileName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
-		return
-	}
-	path := filepath.Join("uploads", uniqueFileName)
-
-	if err := c.SaveUploadedFile(file, path); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file"})
-		return
-	}
-
-	visimisi := models.VisiMisi{
-		Visi: visi,
-		Misi: misi,
-		Foto: path,
-	}
-
-	if err := config.DB.Create(&visimisi).Error; err != nil {
-		os.Remove(path) // Hapus file jika gagal simpan DB
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan visi misi"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Visi misi berhasil ditambahkan", "data": visimisi})
+	c.JSON(http.StatusOK, gin.H{"message": "Visi misi berhasil ditambahkan", "data": input})
 }
 
 // ==================================
@@ -70,16 +48,9 @@ func CreateVisiMisi(c *gin.Context) {
 func GetAllVisiMisi(c *gin.Context) {
 	var data []models.VisiMisi
 	if err := config.DB.Find(&data).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data visi misi"})
 		return
 	}
-
-	var usedPaths []string
-	for _, v := range data {
-		usedPaths = append(usedPaths, v.Foto)
-	}
-
-	helpers.CleanupUnusedFiles("uploads", usedPaths) // Pakai dari helpers
 	c.JSON(http.StatusOK, data)
 }
 
@@ -96,41 +67,24 @@ func UpdateVisiMisi(c *gin.Context) {
 		return
 	}
 
-	visi := helpers.SanitizeText(c.PostForm("visi"))
-	misi := helpers.SanitizeText(c.PostForm("misi"))
-
-	if visi != "" {
-		visimisi.Visi = visi
-	}
-	if misi != "" {
-		visimisi.Misi = misi
+	var input models.VisiMisi
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
 	}
 
-	file, err := c.FormFile("foto")
-	if err == nil {
-		if file.Size > 2*1024*1024 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
-			return
-		}
+	// Sanitasi dan validasi input
+	input.Visi = helpers.SanitizeText(input.Visi)
+	input.Misi = helpers.SanitizeText(input.Misi)
 
-		uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
-		if uniqueFileName == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
-			return
-		}
-		newPath := filepath.Join("uploads", uniqueFileName)
-
-		if err := c.SaveUploadedFile(file, newPath); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file baru"})
-			return
-		}
-
-		// Hapus file lama
-		if visimisi.Foto != "" {
-			_ = os.Remove(visimisi.Foto)
-		}
-		visimisi.Foto = newPath
+	if strings.TrimSpace(input.Visi) == "" || strings.TrimSpace(input.Misi) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Visi dan Misi tidak boleh kosong"})
+		return
 	}
+
+	// Update data
+	visimisi.Visi = input.Visi
+	visimisi.Misi = input.Misi
 
 	if err := config.DB.Save(&visimisi).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data"})
@@ -153,16 +107,9 @@ func DeleteVisiMisi(c *gin.Context) {
 		return
 	}
 
-	filePath := visimisi.Foto // Simpan path sebelum dihapus
-
 	if err := config.DB.Delete(&visimisi).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus data"})
 		return
-	}
-
-	// Hapus file setelah sukses hapus data
-	if filePath != "" {
-		_ = os.Remove(filePath)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Data berhasil dihapus"})
