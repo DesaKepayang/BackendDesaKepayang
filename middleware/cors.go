@@ -9,10 +9,13 @@ import (
 
 func CORSMiddleware() gin.HandlerFunc {
 	config := cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"}, // ✅ asal spesifik
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			"https://desa-kepayang-frontend-user.vercel.app",
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		AllowCredentials: true, // ✅ izinkan kirim cookie
+		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}
 
