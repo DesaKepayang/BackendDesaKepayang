@@ -20,8 +20,8 @@ import (
 
 func TambahAdmin(c *gin.Context) {
 	var input struct {
-		Username string `json:"username" binding:"required,alphanum,min=3,max=30"`
-		Password string `json:"password" binding:"required,min=6,max=100"`
+		Username string `json:"username" binding:"omitempty,min=3,max=30,regexp=^[a-zA-Z0-9 ]+$"`
+		Password string `json:"password" binding:"omitempty,min=6,max=100"`
 	}
 
 	// Validasi input JSON dan filter karakter khusus
@@ -126,7 +126,7 @@ func UpdateAdmin(c *gin.Context) {
 	}
 
 	var input struct {
-		Username string `json:"username" binding:"omitempty,alphanum,min=3,max=30"`
+		Username string `json:"username" binding:"omitempty,min=3,max=30,regexp=^[a-zA-Z0-9 ]+$"`
 		Password string `json:"password" binding:"omitempty,min=6,max=100"`
 	}
 
