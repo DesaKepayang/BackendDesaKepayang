@@ -12,7 +12,6 @@ func AdminRoutes(r *gin.Engine) {
 	{
 		admin.POST("/register", controllers.TambahAdmin)
 		admin.POST("/login", controllers.LoginAdmin)
-		admin.POST("/logout", controllers.LogoutAdmin)
 
 		adminAuth := admin.Group("/")
 		adminAuth.Use(middleware.AuthMiddleware())
@@ -21,6 +20,7 @@ func AdminRoutes(r *gin.Engine) {
 			adminAuth.PUT("/:id", controllers.UpdateAdmin)
 			adminAuth.DELETE("/:id", controllers.DeleteAdmin)
 			adminAuth.GET("/me", controllers.GetAdminProfile)
+			adminAuth.POST("/logout", controllers.LogoutAdmin)
 		}
 	}
 

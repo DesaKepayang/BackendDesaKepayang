@@ -5,6 +5,7 @@ import (
 	"desa-kepayang-backend/models"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,40 +21,60 @@ import (
 
 func TambahAdmin(c *gin.Context) {
 	var input struct {
-		Username string `json:"username" binding:"omitempty,min=3,max=30,regexp=^[a-zA-Z0-9 ]+$"`
-		Password string `json:"password" binding:"omitempty,min=6,max=100"`
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
 
-	// Validasi input JSON dan filter karakter khusus
+	// Bind JSON tanpa validasi bawaan Gin
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid", "detail": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal parsing input", "detail": err.Error()})
 		return
 	}
 
-	// Cegah SSRF dan abuse dengan sanitasi
+	// Sanitasi dan ambil nilai
 	username := strings.TrimSpace(input.Username)
 	password := input.Password
 
-	if len(username) == 0 || len(password) == 0 {
+	// Validasi manual: tidak boleh kosong
+	if username == "" || password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Username dan password tidak boleh kosong"})
 		return
 	}
 
-	// Optional: Cek apakah username sudah ada
+	// Validasi panjang username
+	if len(username) < 3 || len(username) > 30 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username harus 3-30 karakter"})
+		return
+	}
+
+	// Validasi hanya huruf, angka, dan spasi
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9 ]+$`, username)
+	if err != nil || !matched {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username hanya boleh huruf, angka, dan spasi"})
+		return
+	}
+
+	// Validasi panjang password
+	if len(password) < 6 || len(password) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password harus 6-100 karakter"})
+		return
+	}
+
+	// Cek apakah username sudah ada
 	var existing models.Admin
 	if err := config.DB.Where("username = ?", username).First(&existing).Error; err == nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "Username sudah terdaftar"})
 		return
 	}
 
-	// Hash password dengan bcrypt
+	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal meng-hash password"})
 		return
 	}
 
-	// Simpan ke database secara aman menggunakan GORM (ORM cegah SQL Injection)
+	// Simpan admin baru ke database
 	admin := models.Admin{
 		Username: username,
 		Password: string(hashedPassword),
@@ -61,11 +82,11 @@ func TambahAdmin(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&admin).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan admin"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan admin", "detail": err.Error()})
 		return
 	}
 
-	// Hindari mengembalikan password meskipun sudah di-hash
+	// Respon sukses
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Admin berhasil ditambahkan",
 		"data": gin.H{
@@ -118,7 +139,7 @@ func GetAdminProfile(c *gin.Context) {
 func UpdateAdmin(c *gin.Context) {
 	idParam := c.Param("id")
 
-	// Validasi dan sanitasi ID (hindari injection via param ID)
+	// Validasi ID
 	id, err := strconv.Atoi(idParam)
 	if err != nil || id <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID tidak valid"})
@@ -126,30 +147,48 @@ func UpdateAdmin(c *gin.Context) {
 	}
 
 	var input struct {
-		Username string `json:"username" binding:"omitempty,min=3,max=30,regexp=^[a-zA-Z0-9 ]+$"`
-		Password string `json:"password" binding:"omitempty,min=6,max=100"`
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
 
-	// Validasi input JSON dengan aturan
+	// Bind JSON
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid", "detail": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Gagal parsing input", "detail": err.Error()})
 		return
 	}
 
+	// Cari admin berdasarkan ID
 	var admin models.Admin
-	// GORM parameter binding mencegah SQL Injection
 	if err := config.DB.First(&admin, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Admin tidak ditemukan"})
 		return
 	}
 
-	// Update username jika disediakan dan aman
+	// Validasi & update username jika ada
 	if input.Username != "" {
-		admin.Username = strings.TrimSpace(input.Username)
+		username := strings.TrimSpace(input.Username)
+
+		if len(username) < 3 || len(username) > 30 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Username harus 3-30 karakter"})
+			return
+		}
+
+		matched, err := regexp.MatchString(`^[a-zA-Z0-9 ]+$`, username)
+		if err != nil || !matched {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Username hanya boleh huruf, angka, dan spasi"})
+			return
+		}
+
+		admin.Username = username
 	}
 
-	// Update password jika disediakan
+	// Validasi & update password jika ada
 	if input.Password != "" {
+		if len(input.Password) < 6 || len(input.Password) > 100 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Password harus 6-100 karakter"})
+			return
+		}
+
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal meng-hash password"})
@@ -158,13 +197,16 @@ func UpdateAdmin(c *gin.Context) {
 		admin.Password = string(hashedPassword)
 	}
 
-	// Simpan perubahan
+	// Simpan ke database
 	if err := config.DB.Save(&admin).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengupdate admin"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "Gagal mengupdate admin",
+			"detail": err.Error(),
+		})
 		return
 	}
 
-	// Hindari mengembalikan field sensitif (seperti hashed password)
+	// Respon sukses
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Admin berhasil diperbarui",
 		"data": gin.H{
@@ -202,21 +244,32 @@ func DeleteAdmin(c *gin.Context) {
 
 func LoginAdmin(c *gin.Context) {
 	var input struct {
-		Username string `json:"username" binding:"required,alphanum,min=3,max=30"`
-		Password string `json:"password" binding:"required,min=6,max=100"`
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
 
-	// Validasi input
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid", "detail": err.Error()})
 		return
 	}
 
 	username := strings.TrimSpace(input.Username)
 	password := input.Password
 
-	if len(username) == 0 || len(password) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Username dan password wajib diisi"})
+	// Validasi manual
+	if len(username) < 3 || len(username) > 30 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username harus 3-30 karakter"})
+		return
+	}
+
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9 ]+$`, username)
+	if err != nil || !matched {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username hanya boleh huruf, angka, dan spasi"})
+		return
+	}
+
+	if len(password) < 6 || len(password) > 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Password harus 6-100 karakter"})
 		return
 	}
 
@@ -231,7 +284,6 @@ func LoginAdmin(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":       admin.ID,
 		"username": admin.Username,
@@ -245,17 +297,16 @@ func LoginAdmin(c *gin.Context) {
 		return
 	}
 
-	// Set cookie HttpOnly
 	secure := false
 	if gin.Mode() == gin.ReleaseMode {
-		secure = true // hanya diaktifkan di production (HTTPS)
+		secure = true
 	}
 
 	c.SetCookie("auth_token", tokenString, 72*3600, "/", "", secure, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login berhasil",
-		"token":   tokenString, // ⬅️ tambahkan ini agar frontend bisa pakai token
+		"token":   tokenString,
 		"admin": gin.H{
 			"id":       admin.ID,
 			"username": admin.Username,
