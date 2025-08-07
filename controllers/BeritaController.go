@@ -19,9 +19,10 @@ import (
 func CreateBerita(c *gin.Context) {
 	judul := helpers.SanitizeText(c.PostForm("judul"))
 	deskripsi := helpers.SanitizeText(c.PostForm("deskripsi"))
+	tanggal := helpers.SanitizeText(c.PostForm("tanggal")) // Tambahan
 
-	if judul == "" || deskripsi == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Judul dan deskripsi wajib diisi"})
+	if judul == "" || deskripsi == "" || tanggal == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Judul, deskripsi, dan tanggal wajib diisi"})
 		return
 	}
 
@@ -52,6 +53,7 @@ func CreateBerita(c *gin.Context) {
 		Judul:     judul,
 		Deskripsi: deskripsi,
 		Foto:      path,
+		Tanggal:   tanggal,
 	}
 
 	if err := config.DB.Create(&berita).Error; err != nil {
@@ -93,12 +95,16 @@ func UpdateBerita(c *gin.Context) {
 
 	judul := helpers.SanitizeText(c.PostForm("judul"))
 	deskripsi := helpers.SanitizeText(c.PostForm("deskripsi"))
+	tanggal := helpers.SanitizeText(c.PostForm("tanggal")) // Tambahan
 
 	if judul != "" {
 		berita.Judul = judul
 	}
 	if deskripsi != "" {
 		berita.Deskripsi = deskripsi
+	}
+	if tanggal != "" {
+		berita.Tanggal = tanggal
 	}
 
 	file, err := c.FormFile("foto")
