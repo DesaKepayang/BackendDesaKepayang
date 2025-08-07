@@ -2,18 +2,35 @@ package controllers
 
 import (
 	"desa-kepayang-backend/config"
+	"desa-kepayang-backend/helpers"
 	"desa-kepayang-backend/models"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-// CREATE
+// ==================================
+// ========== [CREATE] ==============
+// ==================================
+
 func CreateKomentar(c *gin.Context) {
 	var input models.Komentar
 
-	if err := c.ShouldBindJSON(&input); err != nil ||
-		input.Nama == "" || input.Email == "" || input.NoHP == "" || input.Komentar == "" {
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	// Sanitasi input
+	input.Nama = helpers.SanitizeText(input.Nama)
+	input.Email = helpers.SanitizeText(input.Email)
+	input.NoHP = helpers.SanitizeText(input.NoHP)
+	input.Komentar = helpers.SanitizeText(input.Komentar)
+
+	// Validasi input
+	if strings.TrimSpace(input.Nama) == "" || strings.TrimSpace(input.Email) == "" ||
+		strings.TrimSpace(input.NoHP) == "" || strings.TrimSpace(input.Komentar) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Semua field harus diisi"})
 		return
 	}
@@ -26,7 +43,10 @@ func CreateKomentar(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Komentar berhasil dikirim", "data": input})
 }
 
-// READ (semua)
+// ==================================
+// ========== [READ] ================
+// ==================================
+
 func GetAllKomentar(c *gin.Context) {
 	var list []models.Komentar
 	if err := config.DB.Find(&list).Error; err != nil {
@@ -49,7 +69,10 @@ func GetKomentarByID(c *gin.Context) {
 	c.JSON(http.StatusOK, komentar)
 }
 
-// UPDATE
+// ==================================
+// ========== [UPDATE] ==============
+// ==================================
+
 func UpdateKomentar(c *gin.Context) {
 	id := c.Param("id")
 	var komentar models.Komentar
@@ -61,7 +84,20 @@ func UpdateKomentar(c *gin.Context) {
 
 	var input models.Komentar
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	// Sanitasi input
+	input.Nama = helpers.SanitizeText(input.Nama)
+	input.Email = helpers.SanitizeText(input.Email)
+	input.NoHP = helpers.SanitizeText(input.NoHP)
+	input.Komentar = helpers.SanitizeText(input.Komentar)
+
+	// Validasi input
+	if strings.TrimSpace(input.Nama) == "" || strings.TrimSpace(input.Email) == "" ||
+		strings.TrimSpace(input.NoHP) == "" || strings.TrimSpace(input.Komentar) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Semua field harus diisi"})
 		return
 	}
 
@@ -78,7 +114,10 @@ func UpdateKomentar(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Komentar berhasil diperbarui", "data": komentar})
 }
 
-// DELETE
+// ==================================
+// ========== [DELETE] ==============
+// ==================================
+
 func DeleteKomentar(c *gin.Context) {
 	id := c.Param("id")
 	var komentar models.Komentar
