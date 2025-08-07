@@ -13,12 +13,25 @@ import (
 // ==================================
 
 func CreateJumlahKK(c *gin.Context) {
+	var count int64
+	config.DB.Model(&models.JumlahKK{}).Count(&count)
+	if count >= 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Hanya boleh ada 1 data jumlah KK. Hapus atau update data lama sebelum menambah baru."})
+		return
+	}
+
 	var input struct {
 		JumlahKK int `json:"jumlahkk"`
 	}
 
-	if err := c.ShouldBindJSON(&input); err != nil || input.JumlahKK <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Jumlah KK harus diisi dan lebih dari 0"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	// Validasi nilai
+	if input.JumlahKK <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Jumlah KK harus lebih dari 0"})
 		return
 	}
 
@@ -75,8 +88,13 @@ func UpdateJumlahKK(c *gin.Context) {
 		JumlahKK int `json:"jumlahkk"`
 	}
 
-	if err := c.ShouldBindJSON(&input); err != nil || input.JumlahKK <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Jumlah KK harus valid"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+
+	if input.JumlahKK <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Jumlah KK harus lebih dari 0"})
 		return
 	}
 
