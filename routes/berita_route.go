@@ -11,6 +11,7 @@ func BeritaRoutes(r *gin.Engine) {
 	berita := r.Group("/berita")
 	{
 		berita.GET("/", controllers.GetAllBerita)
+		berita.GET("/:id", controllers.GetBeritaByID)
 		berita.POST("/", middleware.AuthMiddleware(), controllers.CreateBerita)
 		berita.PUT("/:id", middleware.AuthMiddleware(), controllers.UpdateBerita)
 		berita.DELETE("/:id", middleware.AuthMiddleware(), controllers.DeleteBerita)
