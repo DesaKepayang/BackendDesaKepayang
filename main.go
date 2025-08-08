@@ -62,6 +62,7 @@ func main() {
 	routes.PendudukRoutes(r)
 	routes.JumlahKKRoutes(r)
 	routes.KomentarRoutes(r)
+	routes.WebSocketRoutes(r)
 
 	// Jalankan server
 	r.Run()
