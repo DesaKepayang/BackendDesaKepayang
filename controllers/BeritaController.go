@@ -3,7 +3,10 @@ package controllers
 import (
 	"context"
 	"desa-kepayang-backend/helpers"
+	"fmt"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
@@ -11,6 +14,17 @@ import (
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 )
+
+// fungsi bantu untuk membuat string acak
+func randomString(n int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	rand.Seed(time.Now().UnixNano())
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
 
 // ==================================
 // =========== [CREATE] =============
@@ -44,7 +58,6 @@ func CreateBerita(c *gin.Context) {
 		return
 	}
 
-	// Buka file sebagai io.Reader
 	src, err := fileHeader.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
@@ -52,8 +65,10 @@ func CreateBerita(c *gin.Context) {
 	}
 	defer src.Close()
 
+	publicID := fmt.Sprintf("berita/%d_%s", time.Now().Unix(), randomString(8))
+
 	uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
-		Folder: "berita",
+		PublicID: publicID,
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar ke Cloudinary"})
@@ -151,8 +166,10 @@ func UpdateBerita(c *gin.Context) {
 		}
 		defer src.Close()
 
+		publicID := fmt.Sprintf("berita/%d_%s", time.Now().Unix(), randomString(8))
+
 		uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
-			Folder: "berita",
+			PublicID: publicID,
 		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar ke Cloudinary"})
