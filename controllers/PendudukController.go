@@ -3,6 +3,7 @@ package controllers
 import (
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -135,6 +136,44 @@ func CountPendudukByGender(c *gin.Context) {
 		"jumlah_laki_laki": lakiLaki,
 		"jumlah_perempuan": perempuan,
 	})
+}
+
+func CountPendudukByAgama(c *gin.Context) {
+	type AgamaStat struct {
+		Agama  string
+		Jumlah int64
+	}
+
+	// Daftar agama yang ingin dihitung
+	agamaList := []string{"Islam", "Konghucu", "Katolik", "Kristen", "Buddha", "Lain - Lain"}
+
+	var totalPenduduk int64
+	if err := config.DB.Model(&models.DataPenduduk{}).Count(&totalPenduduk).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghitung total penduduk"})
+		return
+	}
+
+	results := make(map[string]string)
+
+	for _, agama := range agamaList {
+		var count int64
+		if err := config.DB.Model(&models.DataPenduduk{}).
+			Where("agama = ?", agama).
+			Count(&count).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghitung jumlah penduduk untuk agama " + agama})
+			return
+		}
+
+		// Hitung persentase
+		var percentage float64
+		if totalPenduduk > 0 {
+			percentage = (float64(count) / float64(totalPenduduk)) * 100
+		}
+
+		results[agama] = fmt.Sprintf("%d (%.2f%%)", count, percentage)
+	}
+
+	c.JSON(http.StatusOK, results)
 }
 
 // ==================================
