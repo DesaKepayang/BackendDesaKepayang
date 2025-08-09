@@ -1,13 +1,15 @@
 package controllers
 
 import (
+	"context"
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/helpers"
 	"desa-kepayang-backend/models"
+	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
+	"time"
 
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,6 +18,8 @@ import (
 // ==================================
 
 func TambahSambutan(c *gin.Context) {
+	ctx := context.Background()
+
 	// Cek apakah sudah ada data sambutan
 	var count int64
 	config.DB.Model(&models.SambutanKepalaDesa{}).Count(&count)
@@ -35,40 +39,47 @@ func TambahSambutan(c *gin.Context) {
 		return
 	}
 
-	// Ambil dan validasi file
-	file, err := c.FormFile("foto_kepaladesa")
+	// Ambil dan validasi file foto
+	fileHeader, err := c.FormFile("foto_kepaladesa")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File foto wajib diunggah", "detail": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File foto wajib diunggah"})
 		return
 	}
-
-	if file.Size > 2*1024*1024 {
+	if fileHeader.Size > 2*1024*1024 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
 		return
 	}
-
-	uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
-	if uniqueFileName == "" {
+	if !helpers.IsAllowedFileType(fileHeader.Filename) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
 		return
 	}
 
-	path := filepath.Join("uploads", uniqueFileName)
-	if err := c.SaveUploadedFile(file, path); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan gambar", "detail": err.Error()})
+	src, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
+		return
+	}
+	defer src.Close()
+
+	publicID := fmt.Sprintf("sambutan/%d_%s", time.Now().Unix(), helpers.RandomString(8))
+
+	uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
+		PublicID: publicID,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar ke Cloudinary"})
 		return
 	}
 
-	// Buat dan simpan data
 	sambutan := models.SambutanKepalaDesa{
-		Foto:           path,
+		Foto:           uploadRes.SecureURL,
+		FotoID:         uploadRes.PublicID,
 		KataSambutan:   kataSambutan,
 		NamaKepalaDesa: namaKepalaDesa,
 	}
 
 	if err := config.DB.Create(&sambutan).Error; err != nil {
-		os.Remove(path) // hapus file jika DB gagal
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan sambutan", "detail": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan sambutan"})
 		return
 	}
 
@@ -83,7 +94,7 @@ func GetSambutan(c *gin.Context) {
 	var sambutans []models.SambutanKepalaDesa
 
 	if err := config.DB.Find(&sambutans).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data", "detail": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data"})
 		return
 	}
 
@@ -95,6 +106,7 @@ func GetSambutan(c *gin.Context) {
 // ==================================
 
 func UpdateSambutan(c *gin.Context) {
+	ctx := context.Background()
 	id := c.Param("id")
 
 	var sambutan models.SambutanKepalaDesa
@@ -114,35 +126,48 @@ func UpdateSambutan(c *gin.Context) {
 		sambutan.NamaKepalaDesa = namaKepalaDesa
 	}
 
-	// Cek dan proses file baru jika ada
-	file, err := c.FormFile("foto_kepaladesa")
+	// Cek file foto baru
+	fileHeader, err := c.FormFile("foto_kepaladesa")
 	if err == nil {
-		if file.Size > 2*1024*1024 {
+		if fileHeader.Size > 2*1024*1024 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
 			return
 		}
-
-		uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
-		if uniqueFileName == "" {
+		if !helpers.IsAllowedFileType(fileHeader.Filename) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
 			return
 		}
 
-		newPath := filepath.Join("uploads", uniqueFileName)
-		if err := c.SaveUploadedFile(file, newPath); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan gambar baru", "detail": err.Error()})
+		// Hapus foto lama dari Cloudinary
+		if sambutan.FotoID != "" {
+			_, _ = config.Cloudinary.Upload.Destroy(ctx, uploader.DestroyParams{
+				PublicID: sambutan.FotoID,
+			})
+		}
+
+		src, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
+			return
+		}
+		defer src.Close()
+
+		publicID := fmt.Sprintf("sambutan/%d_%s", time.Now().Unix(), helpers.RandomString(8))
+
+		uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
+			PublicID: publicID,
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar ke Cloudinary"})
 			return
 		}
 
-		// Hapus file lama
-		if sambutan.Foto != "" {
-			_ = os.Remove(sambutan.Foto)
-		}
-		sambutan.Foto = newPath
+		sambutan.Foto = uploadRes.SecureURL
+		sambutan.FotoID = uploadRes.PublicID
 	}
 
 	if err := config.DB.Save(&sambutan).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data", "detail": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data"})
 		return
 	}
 
@@ -154,6 +179,7 @@ func UpdateSambutan(c *gin.Context) {
 // ==================================
 
 func DeleteSambutan(c *gin.Context) {
+	ctx := context.Background()
 	id := c.Param("id")
 
 	var sambutan models.SambutanKepalaDesa
@@ -162,13 +188,16 @@ func DeleteSambutan(c *gin.Context) {
 		return
 	}
 
-	if err := config.DB.Delete(&sambutan).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus data", "detail": err.Error()})
-		return
+	// Hapus foto di Cloudinary
+	if sambutan.FotoID != "" {
+		_, _ = config.Cloudinary.Upload.Destroy(ctx, uploader.DestroyParams{
+			PublicID: sambutan.FotoID,
+		})
 	}
 
-	if sambutan.Foto != "" {
-		_ = os.Remove(sambutan.Foto)
+	if err := config.DB.Delete(&sambutan).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus data"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Data berhasil dihapus"})

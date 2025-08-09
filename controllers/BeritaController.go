@@ -4,7 +4,6 @@ import (
 	"context"
 	"desa-kepayang-backend/helpers"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"time"
 
@@ -14,17 +13,6 @@ import (
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 )
-
-// fungsi bantu untuk membuat string acak
-func randomString(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	rand.Seed(time.Now().UnixNano())
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
-}
 
 // ==================================
 // =========== [CREATE] =============
