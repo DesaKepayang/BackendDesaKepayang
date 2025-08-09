@@ -65,7 +65,7 @@ func CreateBerita(c *gin.Context) {
 	}
 	defer src.Close()
 
-	publicID := fmt.Sprintf("berita/%d_%s", time.Now().Unix(), randomString(8))
+	publicID := fmt.Sprintf("berita/%d_%s", time.Now().Unix(), helpers.RandomString(8))
 
 	uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
 		PublicID: publicID,
@@ -166,7 +166,7 @@ func UpdateBerita(c *gin.Context) {
 		}
 		defer src.Close()
 
-		publicID := fmt.Sprintf("berita/%d_%s", time.Now().Unix(), randomString(8))
+		publicID := fmt.Sprintf("berita/%d_%s", time.Now().Unix(), helpers.RandomString(8))
 
 		uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
 			PublicID: publicID,
