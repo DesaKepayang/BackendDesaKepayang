@@ -11,10 +11,15 @@ import (
 )
 
 func main() {
-	// Inisialisasi DB dan Migrasi
+	// Inisialisasi DB
 	config.InitDB()
+
+	// Inisialisasi Cloudinary
+	config.InitCloudinary()
+
 	db := config.DB
 
+	// Migrasi tabel
 	err := config.DB.AutoMigrate(
 		&models.SambutanKepalaDesa{},
 		&models.Admin{},
@@ -33,26 +38,26 @@ func main() {
 		log.Fatal("Gagal migrasi DB:", err)
 	}
 
+	// Tambah foreign key
 	err = db.Exec(`
-		ALTER TABLE data_penduduk
-		ADD CONSTRAINT fk_penduduk_rtrw
-		FOREIGN KEY (id_rtrw) REFERENCES rt_rw(id_rtrw)
-		ON DELETE RESTRICT
-		ON UPDATE CASCADE
-	`).Error
-
+        ALTER TABLE data_penduduk
+        ADD CONSTRAINT fk_penduduk_rtrw
+        FOREIGN KEY (id_rtrw) REFERENCES rt_rw(id_rtrw)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
+    `).Error
 	if err != nil {
 		log.Println("Peringatan: Gagal menambahkan foreign key (mungkin sudah ada):", err)
 	}
 
-	// Inisialisasi router
+	// Router
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
 
-	// Jadikan folder 'uploads/' sebagai folder statis
+	// Static folder
 	r.Static("/uploads", "./uploads")
 
-	// Registrasi routes sambutan
+	// Routes
 	routes.SambutanRoutes(r)
 	routes.AdminRoutes(r)
 	routes.BeritaRoutes(r)

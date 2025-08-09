@@ -1,14 +1,14 @@
 package controllers
 
 import (
+	"context"
 	"desa-kepayang-backend/helpers"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
 
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,47 +17,58 @@ import (
 // ==================================
 
 func CreateBerita(c *gin.Context) {
+	ctx := context.Background()
+
 	judul := helpers.SanitizeText(c.PostForm("judul"))
 	deskripsi := helpers.SanitizeText(c.PostForm("deskripsi"))
-	tanggal := helpers.SanitizeText(c.PostForm("tanggal")) // Tambahan
+	tanggal := helpers.SanitizeText(c.PostForm("tanggal"))
 
 	if judul == "" || deskripsi == "" || tanggal == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Judul, deskripsi, dan tanggal wajib diisi"})
 		return
 	}
 
-	file, err := c.FormFile("foto")
+	fileHeader, err := c.FormFile("foto")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File foto wajib diunggah"})
 		return
 	}
 
-	if file.Size > 2*1024*1024 {
+	if fileHeader.Size > 2*1024*1024 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
 		return
 	}
 
-	uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
-	if uniqueFileName == "" {
+	if !helpers.IsAllowedFileType(fileHeader.Filename) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
 		return
 	}
 
-	path := filepath.Join("uploads", uniqueFileName)
-	if err := c.SaveUploadedFile(file, path); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file"})
+	// Buka file sebagai io.Reader
+	src, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
+		return
+	}
+	defer src.Close()
+
+	uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
+		Folder: "berita",
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar ke Cloudinary"})
 		return
 	}
 
 	berita := models.Berita{
 		Judul:     judul,
 		Deskripsi: deskripsi,
-		Foto:      path,
+		Foto:      uploadRes.SecureURL,
+		FotoID:    uploadRes.PublicID,
 		Tanggal:   tanggal,
 	}
 
 	if err := config.DB.Create(&berita).Error; err != nil {
-		os.Remove(path)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambahkan berita"})
 		return
 	}
@@ -71,24 +82,20 @@ func CreateBerita(c *gin.Context) {
 
 func GetAllBerita(c *gin.Context) {
 	var daftarBerita []models.Berita
-
 	if err := config.DB.Find(&daftarBerita).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data berita"})
 		return
 	}
-
 	c.JSON(http.StatusOK, daftarBerita)
 }
 
 func GetBeritaByID(c *gin.Context) {
 	id := c.Param("id")
 	var berita models.Berita
-
 	if err := config.DB.First(&berita, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Berita tidak ditemukan"})
 		return
 	}
-
 	c.JSON(http.StatusOK, berita)
 }
 
@@ -97,9 +104,10 @@ func GetBeritaByID(c *gin.Context) {
 // ==================================
 
 func UpdateBerita(c *gin.Context) {
+	ctx := context.Background()
 	id := c.Param("id")
-	var berita models.Berita
 
+	var berita models.Berita
 	if err := config.DB.First(&berita, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Berita tidak ditemukan"})
 		return
@@ -107,7 +115,7 @@ func UpdateBerita(c *gin.Context) {
 
 	judul := helpers.SanitizeText(c.PostForm("judul"))
 	deskripsi := helpers.SanitizeText(c.PostForm("deskripsi"))
-	tanggal := helpers.SanitizeText(c.PostForm("tanggal")) // Tambahan
+	tanggal := helpers.SanitizeText(c.PostForm("tanggal"))
 
 	if judul != "" {
 		berita.Judul = judul
@@ -119,29 +127,40 @@ func UpdateBerita(c *gin.Context) {
 		berita.Tanggal = tanggal
 	}
 
-	file, err := c.FormFile("foto")
+	fileHeader, err := c.FormFile("foto")
 	if err == nil {
-		if file.Size > 2*1024*1024 {
+		if fileHeader.Size > 2*1024*1024 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Ukuran file maksimal 2MB"})
 			return
 		}
-
-		uniqueFileName := helpers.GenerateUniqueFileName(file.Filename)
-		if uniqueFileName == "" {
+		if !helpers.IsAllowedFileType(fileHeader.Filename) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Ekstensi file tidak diizinkan"})
 			return
 		}
 
-		newPath := filepath.Join("uploads", uniqueFileName)
-		if err := c.SaveUploadedFile(file, newPath); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan file baru"})
+		if berita.FotoID != "" {
+			_, _ = config.Cloudinary.Upload.Destroy(ctx, uploader.DestroyParams{
+				PublicID: berita.FotoID,
+			})
+		}
+
+		src, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal membuka file"})
+			return
+		}
+		defer src.Close()
+
+		uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
+			Folder: "berita",
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar ke Cloudinary"})
 			return
 		}
 
-		if berita.Foto != "" {
-			_ = os.Remove(berita.Foto)
-		}
-		berita.Foto = newPath
+		berita.Foto = uploadRes.SecureURL
+		berita.FotoID = uploadRes.PublicID
 	}
 
 	if err := config.DB.Save(&berita).Error; err != nil {
@@ -157,21 +176,24 @@ func UpdateBerita(c *gin.Context) {
 // ==================================
 
 func DeleteBerita(c *gin.Context) {
+	ctx := context.Background()
 	id := c.Param("id")
-	var berita models.Berita
 
+	var berita models.Berita
 	if err := config.DB.First(&berita, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Berita tidak ditemukan"})
 		return
 	}
 
+	if berita.FotoID != "" {
+		_, _ = config.Cloudinary.Upload.Destroy(ctx, uploader.DestroyParams{
+			PublicID: berita.FotoID,
+		})
+	}
+
 	if err := config.DB.Delete(&berita).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghapus berita"})
 		return
-	}
-
-	if berita.Foto != "" {
-		_ = os.Remove(berita.Foto)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Berita berhasil dihapus"})

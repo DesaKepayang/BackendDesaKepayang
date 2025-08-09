@@ -45,3 +45,15 @@ func CleanupUnusedFiles(folder string, usedPaths []string) {
 		}
 	}
 }
+
+func IsAllowedFileType(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	allowedExt := []string{".jpg", ".jpeg", ".png", ".webp"}
+
+	for _, allowed := range allowedExt {
+		if ext == allowed {
+			return true
+		}
+	}
+	return false
+}

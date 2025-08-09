@@ -1,9 +1,12 @@
 package controllers
 
 import (
-	"desa-kepayang-backend/config"
-	"desa-kepayang-backend/models"
 	"net/http"
+	"strings"
+
+	"desa-kepayang-backend/config"
+	"desa-kepayang-backend/helpers"
+	"desa-kepayang-backend/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,20 +17,18 @@ import (
 
 func CreateRTRW(c *gin.Context) {
 	var input models.RTRW
-	contentType := c.GetHeader("Content-Type")
 
-	if contentType == "application/json" {
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Format JSON tidak valid"})
-			return
-		}
-	} else {
-		// fallback untuk form-data atau x-www-form-urlencoded
-		input.RT = c.PostForm("rt")
-		input.RW = c.PostForm("rw")
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
 	}
 
-	if input.RT == "" || input.RW == "" {
+	// Sanitasi input
+	input.RT = helpers.SanitizeText(input.RT)
+	input.RW = helpers.SanitizeText(input.RW)
+
+	// Validasi input
+	if strings.TrimSpace(input.RT) == "" || strings.TrimSpace(input.RW) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "RT dan RW tidak boleh kosong"})
 		return
 	}
@@ -61,33 +62,26 @@ func UpdateRTRW(c *gin.Context) {
 	id := c.Param("id")
 	var data models.RTRW
 
-	// Cari data berdasarkan ID
 	if err := config.DB.First(&data, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Data RT/RW tidak ditemukan"})
 		return
 	}
 
-	contentType := c.GetHeader("Content-Type")
 	var input models.RTRW
-
-	// Bind berdasarkan tipe Content-Type
-	if contentType == "application/json" {
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Format JSON tidak valid"})
-			return
-		}
-	} else {
-		input.RT = c.PostForm("rt")
-		input.RW = c.PostForm("rw")
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
+		return
 	}
 
-	// Validasi sederhana
-	if input.RT == "" || input.RW == "" {
+	// Sanitasi & Validasi
+	input.RT = helpers.SanitizeText(input.RT)
+	input.RW = helpers.SanitizeText(input.RW)
+
+	if strings.TrimSpace(input.RT) == "" || strings.TrimSpace(input.RW) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "RT dan RW tidak boleh kosong"})
 		return
 	}
 
-	// Update data
 	data.RT = input.RT
 	data.RW = input.RW
 
