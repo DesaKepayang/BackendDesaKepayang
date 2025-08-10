@@ -13,6 +13,7 @@ func PendudukRoutes(r *gin.Engine) {
 		pd.GET("/", controllers.GetAllPenduduk)
 		pd.GET("/jumlah", controllers.CountPenduduk)
 		pd.GET("/count/agama", controllers.CountPendudukByAgama)
+		pd.GET("/count/perrtrw", controllers.CountPendudukPerRTRW)
 		pd.GET("/jumlah-gender", controllers.CountPendudukByGender)
 		pd.POST("/", middleware.AuthMiddleware(), controllers.CreatePenduduk)
 		pd.PUT("/:id", middleware.AuthMiddleware(), controllers.UpdatePenduduk)

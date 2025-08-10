@@ -176,6 +176,66 @@ func CountPendudukByAgama(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
+func CountPendudukPerRTRW(c *gin.Context) {
+	// Ambil semua data RTRW
+	var rtrwList []models.RTRW
+	if err := config.DB.Find(&rtrwList).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data RTRW"})
+		return
+	}
+
+	// Hitung total penduduk keseluruhan
+	var totalPenduduk int64
+	if err := config.DB.Model(&models.DataPenduduk{}).Count(&totalPenduduk).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghitung total penduduk"})
+		return
+	}
+
+	// Buat slice untuk menyimpan hasil
+	type Result struct {
+		IDRTRW        uint    `json:"id_rtrw"`
+		RT            string  `json:"rt"`
+		RW            string  `json:"rw"`
+		Jumlah        int64   `json:"jumlah"`
+		Persentase    float64 `json:"persentase"`
+		FormattedText string  `json:"formatted_text"`
+	}
+
+	var results []Result
+
+	// Hitung jumlah penduduk per RTRW
+	for _, rtrw := range rtrwList {
+		var count int64
+		if err := config.DB.Model(&models.DataPenduduk{}).
+			Where("id_rtrw = ?", rtrw.IDRTRW).
+			Count(&count).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menghitung penduduk per RTRW"})
+			return
+		}
+
+		// Hitung persentase
+		var percentage float64
+		if totalPenduduk > 0 {
+			percentage = (float64(count) / float64(totalPenduduk)) * 100
+		}
+
+		// Format teks sesuai permintaan
+		formatted := fmt.Sprintf("RTRW : %s / %s %d (%.0f%%)",
+			rtrw.RT, rtrw.RW, count, percentage)
+
+		results = append(results, Result{
+			IDRTRW:        rtrw.IDRTRW,
+			RT:            rtrw.RT,
+			RW:            rtrw.RW,
+			Jumlah:        count,
+			Persentase:    percentage,
+			FormattedText: formatted,
+		})
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
 // ==================================
 // =========== [UPDATE] =============
 // ==================================
