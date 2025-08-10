@@ -236,6 +236,54 @@ func CountPendudukPerRTRW(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
+func SearchPendudukByName(c *gin.Context) {
+	nama := c.Query("nama")
+	if nama == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter 'nama' diperlukan"})
+		return
+	}
+
+	var pendudukList []models.DataPenduduk
+	query := config.DB.Where("nama LIKE ?", "%"+nama+"%")
+
+	if err := query.Find(&pendudukList).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mencari penduduk"})
+		return
+	}
+
+	// Ambil data RTRW untuk setiap penduduk
+	var rtrwList []models.RTRW
+	if err := config.DB.Find(&rtrwList).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data RTRW"})
+		return
+	}
+
+	rtrwMap := make(map[uint]models.RTRW)
+	for _, r := range rtrwList {
+		rtrwMap[r.IDRTRW] = r
+	}
+
+	// Format response
+	var response []gin.H
+	for _, p := range pendudukList {
+		rtrw := rtrwMap[p.IDRTRW]
+		response = append(response, gin.H{
+			"id_penduduk": p.IDPenduduk,
+			"id_rtrw":     p.IDRTRW,
+			"nama":        p.Nama,
+			"agama":       p.Agama,
+			"gender":      p.Gender,
+			"rtrw": gin.H{
+				"id_rtrw": rtrw.IDRTRW,
+				"rt":      rtrw.RT,
+				"rw":      rtrw.RW,
+			},
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // ==================================
 // =========== [UPDATE] =============
 // ==================================
