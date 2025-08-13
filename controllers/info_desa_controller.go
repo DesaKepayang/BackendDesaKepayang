@@ -10,21 +10,19 @@ import (
 
 // CREATE
 func CreateInfoDesa(c *gin.Context) {
-	var count int64
-	config.DB.Model(&models.InfoDesa{}).Count(&count)
-	if count >= 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Hanya boleh ada 1 data info desa. Hapus atau update data lama sebelum menambah baru."})
-		return
-	}
-
 	var input models.InfoDesa
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Format data tidak valid"})
 		return
 	}
 
-	if input.JumlahKK <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Jumlah KK harus lebih dari 0"})
+	if input.Indikator == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Indikator tidak boleh kosong"})
+		return
+	}
+
+	if input.Jumlah < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Jumlah tidak boleh negatif"})
 		return
 	}
 
@@ -76,9 +74,19 @@ func UpdateInfoDesa(c *gin.Context) {
 		return
 	}
 
-	// Timpa semua data dengan input baru
+	if input.Indikator == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Indikator tidak boleh kosong"})
+		return
+	}
+
+	if input.Jumlah < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Jumlah tidak boleh negatif"})
+		return
+	}
+
+	// Timpa semua data dengan input baru, tetapi pertahankan ID lama
 	data = input
-	data.IDInfo = existingID // kembalikan ID lama
+	data.IDInfo = existingID
 
 	if err := config.DB.Save(&data).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal memperbarui data"})
