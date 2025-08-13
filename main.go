@@ -28,7 +28,7 @@ func main() {
 		&models.StrukturDesa{},
 		&models.RTRW{},
 		&models.DataPenduduk{},
-		&models.JumlahKK{},
+		&models.InfoDesa{},
 		&models.Komentar{},
 	)
 
@@ -65,7 +65,7 @@ func main() {
 	routes.StrukturDesaRoutes(r)
 	routes.RTRWRoutes(r)
 	routes.PendudukRoutes(r)
-	routes.JumlahKKRoutes(r)
+	routes.InfoDesaRoutes(r)
 	routes.KomentarRoutes(r)
 	routes.WebSocketRoutes(r)
 
