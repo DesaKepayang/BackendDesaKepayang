@@ -19,7 +19,16 @@ func main() {
 
 	db := config.DB
 
-	// Migrasi tabel
+	// ====== MIGRASI DB ======
+	// Drop tabel info_desa lama
+	if db.Migrator().HasTable(&models.InfoDesa{}) {
+		if err := db.Migrator().DropTable(&models.InfoDesa{}); err != nil {
+			log.Fatal("Gagal drop tabel info_desa:", err)
+		}
+		log.Println("Tabel info_desa lama dihapus")
+	}
+
+	// Migrasi tabel baru
 	err := config.DB.AutoMigrate(
 		&models.SambutanKepalaDesa{},
 		&models.Admin{},
@@ -28,7 +37,7 @@ func main() {
 		&models.StrukturDesa{},
 		&models.RTRW{},
 		&models.DataPenduduk{},
-		&models.InfoDesa{},
+		&models.InfoDesa{}, // sekarang sudah struktur baru (3 kolom)
 		&models.Komentar{},
 	)
 
@@ -50,7 +59,7 @@ func main() {
 		log.Println("Peringatan: Gagal menambahkan foreign key (mungkin sudah ada):", err)
 	}
 
-	// Router
+	// ====== ROUTER ======
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
 
