@@ -12,7 +12,7 @@ func KomentarRoutes(r *gin.Engine) {
 	{
 		k.GET("/", controllers.GetAllKomentar)
 		k.GET("/:id", controllers.GetKomentarByID)
-		k.POST("/", middleware.AuthMiddleware(), controllers.CreateKomentar)
+		k.POST("/", controllers.CreateKomentar)
 		k.PUT("/:id", middleware.AuthMiddleware(), controllers.UpdateKomentar)
 		k.DELETE("/:id", middleware.AuthMiddleware(), controllers.DeleteKomentar)
 	}
