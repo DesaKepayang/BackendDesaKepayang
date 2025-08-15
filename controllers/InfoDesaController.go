@@ -3,6 +3,7 @@ package controllers
 import (
 	"desa-kepayang-backend/config"
 	"desa-kepayang-backend/models"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -73,6 +74,73 @@ func GetInfoDasar(c *gin.Context) {
 		"Perempuan":       result["Perempuan"],
 		"Jumlah KK":       result["Jumlah KK"],
 	})
+}
+
+func GetInfoAgama(c *gin.Context) {
+	var infoDesa []models.InfoDesa
+
+	// Ambil data indikator agama
+	agamaList := []string{"Islam", "Kristen", "Katolik", "Buddha", "Konghucu", "Lain-lain"}
+	if err := config.DB.Where("indikator IN ?", agamaList).Find(&infoDesa).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data agama"})
+		return
+	}
+
+	// Hitung total penduduk
+	totalPenduduk := 0
+	for _, item := range infoDesa {
+		totalPenduduk += item.Jumlah
+	}
+
+	// Format hasil
+	result := make(map[string]string)
+	for _, agama := range agamaList {
+		jumlah := 0
+		for _, item := range infoDesa {
+			if item.Indikator == agama {
+				jumlah = item.Jumlah
+				break
+			}
+		}
+		// Hitung persentase
+		percentage := 0.0
+		if totalPenduduk > 0 {
+			percentage = (float64(jumlah) / float64(totalPenduduk)) * 100
+		}
+		result[agama] = fmt.Sprintf("%d (%.2f%%)", jumlah, percentage)
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func GetInfoRTRW(c *gin.Context) {
+	var infoDesa []models.InfoDesa
+
+	// Ambil semua data dengan format "NN / NN"
+	if err := config.DB.
+		Where("indikator LIKE ?", "__ / __").
+		Find(&infoDesa).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data RT/RW"})
+		return
+	}
+
+	// Hitung total penduduk di semua RT/RW
+	totalPenduduk := 0
+	for _, item := range infoDesa {
+		totalPenduduk += item.Jumlah
+	}
+
+	// Format hasil
+	result := make(map[string]string)
+	for _, item := range infoDesa {
+		percentage := 0.0
+		if totalPenduduk > 0 {
+			percentage = (float64(item.Jumlah) / float64(totalPenduduk)) * 100
+		}
+		result[item.Indikator] = fmt.Sprintf("%d (%.2f%%)", item.Jumlah, percentage)
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // ==================================
