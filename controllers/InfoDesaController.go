@@ -8,7 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CREATE
+// ==================================
+// ========== [CREATE] ==============
+// ==================================
+
 func CreateInfoDesa(c *gin.Context) {
 	var input models.InfoDesa
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -34,7 +37,10 @@ func CreateInfoDesa(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Info desa berhasil ditambahkan", "data": input})
 }
 
-// READ ALL
+// ==================================
+// ========== [READ] ================
+// ==================================
+
 func GetAllInfoDesa(c *gin.Context) {
 	var list []models.InfoDesa
 	if err := config.DB.Find(&list).Error; err != nil {
@@ -44,18 +50,35 @@ func GetAllInfoDesa(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
-// READ BY ID
-func GetInfoDesaByID(c *gin.Context) {
-	id := c.Param("id")
-	var data models.InfoDesa
-	if err := config.DB.First(&data, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Data tidak ditemukan"})
+func GetInfoDasar(c *gin.Context) {
+	var infoDesa []models.InfoDesa
+
+	// Ambil semua data indikator yang diperlukan
+	if err := config.DB.Where("indikator IN ?", []string{
+		"Jumlah Penduduk", "Laki-laki", "Perempuan", "Jumlah KK",
+	}).Find(&infoDesa).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data info dasar"})
 		return
 	}
-	c.JSON(http.StatusOK, data)
+
+	// Buat map untuk memudahkan akses
+	result := make(map[string]int)
+	for _, item := range infoDesa {
+		result[item.Indikator] = item.Jumlah
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"Jumlah Penduduk": result["Jumlah Penduduk"],
+		"Laki-laki":       result["Laki-laki"],
+		"Perempuan":       result["Perempuan"],
+		"Jumlah KK":       result["Jumlah KK"],
+	})
 }
 
-// UPDATE
+// ==================================
+// ========== [UPDATE] ==============
+// ==================================
+
 func UpdateInfoDesa(c *gin.Context) {
 	id := c.Param("id")
 	var data models.InfoDesa
@@ -96,7 +119,10 @@ func UpdateInfoDesa(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Info desa berhasil diperbarui", "data": data})
 }
 
-// DELETE
+// ==================================
+// ========== [DELETE] ==============
+// ==================================
+
 func DeleteInfoDesa(c *gin.Context) {
 	id := c.Param("id")
 	var data models.InfoDesa
