@@ -19,15 +19,6 @@ func main() {
 
 	db := config.DB
 
-	// ====== MIGRASI DB ======
-	// Drop tabel info_desa lama
-	if db.Migrator().HasTable(&models.InfoDesa{}) {
-		if err := db.Migrator().DropTable(&models.InfoDesa{}); err != nil {
-			log.Fatal("Gagal drop tabel info_desa:", err)
-		}
-		log.Println("Tabel info_desa lama dihapus")
-	}
-
 	// Migrasi tabel baru
 	err := config.DB.AutoMigrate(
 		&models.SambutanKepalaDesa{},
@@ -40,8 +31,6 @@ func main() {
 		&models.InfoDesa{}, // sekarang sudah struktur baru (3 kolom)
 		&models.Komentar{},
 	)
-
-	models.DropFotoColumn(db)
 
 	if err != nil {
 		log.Fatal("Gagal migrasi DB:", err)
@@ -62,9 +51,6 @@ func main() {
 	// ====== ROUTER ======
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
-
-	// Static folder
-	r.Static("/uploads", "./uploads")
 
 	// Routes
 	routes.SambutanRoutes(r)
