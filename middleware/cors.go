@@ -13,6 +13,7 @@ func CORSMiddleware() gin.HandlerFunc {
 			"http://localhost:3000",
 			"https://desa-kepayang-frontend-user.vercel.app",
 			"https://desa-kepayang-admin.vercel.app",
+			"https://www.desakepayang.site",
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
