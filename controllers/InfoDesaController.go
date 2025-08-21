@@ -80,7 +80,7 @@ func GetInfoAgama(c *gin.Context) {
 	var infoDesa []models.InfoDesa
 
 	// Ambil data indikator agama
-	agamaList := []string{"Islam", "Kristen", "Katolik", "Buddha", "Konghucu", "Lain-lain"}
+	agamaList := []string{"Islam", "Protestan", "Katolik", "Buddha", "Konghucu", "Lain-lain"}
 	if err := config.DB.Where("indikator IN ?", agamaList).Find(&infoDesa).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data agama"})
 		return
