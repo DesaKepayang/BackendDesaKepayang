@@ -64,8 +64,10 @@ func TambahSambutan(c *gin.Context) {
 	publicID := fmt.Sprintf("sambutan/%d_%s", time.Now().Unix(), helpers.RandomString(8))
 
 	uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
-		PublicID: publicID,
+		PublicID:       publicID,
+		Transformation: "c_fill,g_face,h_600,w_400", // fokus wajah & crop proporsional
 	})
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar ke Cloudinary"})
 		return
@@ -155,8 +157,10 @@ func UpdateSambutan(c *gin.Context) {
 		publicID := fmt.Sprintf("sambutan/%d_%s", time.Now().Unix(), helpers.RandomString(8))
 
 		uploadRes, err := config.Cloudinary.Upload.Upload(ctx, src, uploader.UploadParams{
-			PublicID: publicID,
+			PublicID:       publicID,
+			Transformation: "c_fill,g_face,h_600,w_400", // fokus wajah & crop proporsional
 		})
+
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal upload gambar ke Cloudinary"})
 			return
